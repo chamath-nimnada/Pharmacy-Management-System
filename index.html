@@ -15,10 +15,11 @@
 
     <div class="app-container">
         <nav class="sidebar">
-            <div class="brand">💊 PharmaCore</div>
+            <div class="brand">Pharmacy POS</div>
             <div class="menu">
                 <button class="nav-btn active" onclick="nav('dashboard')">Dashboard</button>
                 <button class="nav-btn" onclick="nav('pos')">POS Billing</button>
+                <button class="nav-btn" onclick="nav('sales-history')">Sales History</button>
                 <button class="nav-btn" onclick="nav('inventory')">Inventory</button>
                 <button class="nav-btn" onclick="nav('purchases')">Purchases</button>
             </div>
@@ -32,8 +33,15 @@
                     <div class="card summary-card">
                         <div class="icon-wrapper blue">💰</div>
                         <div>
-                            <div class="card-value" id="d-sales-total">₹0.00</div>
+                            <div class="card-value" id="d-sales-total">Rs.0.00</div>
                             <div class="card-label">Today's Sales (<span id="d-sales-count">0</span>)</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="icon-wrapper purple">📅</div>
+                        <div>
+                            <div class="card-value" id="d-month-total">Rs.0.00</div>
+                            <div class="card-label">Monthly Sales</div>
                         </div>
                     </div>
                     <div class="card summary-card">
@@ -50,13 +58,6 @@
                             <div class="card-label">Expiring Soon</div>
                         </div>
                     </div>
-                    <div class="card summary-card">
-                        <div class="icon-wrapper green">🔔</div>
-                        <div>
-                            <div class="card-value" id="d-due-count">0</div>
-                            <div class="card-label">Payment Dues</div>
-                        </div>
-                    </div>
                 </div>
                 <div class="alerts-grid">
                     <div class="card">
@@ -68,7 +69,7 @@
                         <ul id="expiryList" class="alert-list"></ul>
                     </div>
                     <div class="card">
-                        <h3>Reminders</h3>
+                        <h3>Pending Due Invoices</h3>
                         <ul id="dueList" class="alert-list"></ul>
                     </div>
                 </div>
@@ -98,24 +99,42 @@
                             </table>
                             <div id="emptyCartMsg" class="empty-state">Cart is empty.</div>
                         </div>
+                        <button class="btn-danger" style="margin-top:10px;" onclick="clearCart()">Clear Cart</button>
                     </div>
                     <div class="pos-right card">
-                        <h3>Details</h3>
-                        <div class="form-group"><label>Customer</label><input type="text" id="custName"
-                                placeholder="Name (Optional)"></div>
-                        <div class="form-group"><label>Payment</label>
+                        <h3>Billing Details</h3>
+                        <div class="form-group"><label>Customer Name</label><input type="text" id="custName"
+                                placeholder="Walk-in Customer"></div>
+                        <div class="form-group"><label>Payment Method</label>
                             <select id="payMethod">
-                                <option>Cash</option>
-                                <option>Card</option>
-                                <option>UPI</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
                             </select>
                         </div>
                         <div class="bill-summary">
-                            <div class="summary-row"><span>Subtotal:</span> <span id="billSubtotal">₹0.00</span></div>
-                            <div class="summary-row total"><span>Total:</span> <span id="billTotal">₹0.00</span></div>
+                            <div class="summary-row"><span>Subtotal:</span> <span id="billSubtotal">Rs.0.00</span></div>
+                            <div class="summary-row total"><span>Total:</span> <span id="billTotal">Rs.0.00</span></div>
                         </div>
                         <button class="btn-primary full-width" onclick="checkout()">COMPLETE & PRINT</button>
                     </div>
+                </div>
+            </div>
+
+            <div id="sales-history" class="view hidden fade-in">
+                <h2 class="page-title">Sales History</h2>
+                <div class="card table-wrapper">
+                    <table id="salesTable">
+                        <thead>
+                            <tr>
+                                <th>Sale ID</th>
+                                <th>Date</th>
+                                <th>Payment</th>
+                                <th>Total</th>
+                                <th>Items</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -151,13 +170,29 @@
             </div>
 
             <div id="purchases" class="view hidden fade-in">
-                <h2 class="page-title">Purchases</h2>
-                <div class="card" style="max-width:600px; margin-top:20px;">
-                    <div class="form-group"><label>Supplier</label><input id="pSup"></div>
-                    <div class="form-group"><label>Invoice No</label><input id="pInv"></div>
-                    <div class="form-group"><label>Amount (₹)</label><input type="number" id="pAmt"></div>
-                    <div class="form-group"><label>Due Date</label><input type="date" id="pDue"></div>
-                    <button class="btn-primary full-width" onclick="savePurchase()">Save Invoice</button>
+                <div class="flex-header">
+                    <h2 class="page-title">Purchases</h2>
+                    <div style="display:flex; gap:10px; width: 60%;">
+                        <input type="text" id="purchaseSearch" placeholder="Search Supplier or Invoice..."
+                            onkeyup="if(event.key==='Enter') loadPurchases()">
+                        <button class="btn-primary" onclick="loadPurchases()">Search</button>
+                        <button class="btn-primary" onclick="openModal('modal-add-purchase')">+ New Invoice</button>
+                    </div>
+                </div>
+                <div class="card table-wrapper" style="margin-top:20px;">
+                    <table id="purchaseTable">
+                        <thead>
+                            <tr>
+                                <th>Supplier</th>
+                                <th>Invoice No</th>
+                                <th>Amount</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
         </main>
@@ -191,6 +226,33 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('modal-add-stock')">Cancel</button>
                 <button class="btn-primary" onclick="submitStock()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-purchase" class="modal-overlay hidden">
+        <div class="modal-content fade-in">
+            <div class="modal-header">
+                <h3>Add Purchase Invoice</h3><button class="close-btn"
+                    onclick="closeModal('modal-add-purchase')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group"><label>Supplier Name *</label><input id="pSup"></div>
+                <div class="form-group"><label>Invoice No *</label><input id="pInv"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Amount (Rs.) *</label><input type="number" id="pAmt"></div>
+                    <div class="form-group"><label>Due Date *</label><input type="date" id="pDue"></div>
+                </div>
+                <div class="form-group"><label>Status</label>
+                    <select id="pStatus">
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-add-purchase')">Cancel</button>
+                <button class="btn-primary" onclick="savePurchase()">Save Invoice</button>
             </div>
         </div>
     </div>

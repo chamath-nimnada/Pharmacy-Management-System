@@ -1,6 +1,5 @@
 :root {
     --primary: #1e40af;
-    /* Deeper blue */
     --primary-light: #3b82f6;
     --bg-main: #f3f4f6;
     --bg-card: #ffffff;
@@ -21,28 +20,9 @@ body {
     height: 100vh;
     overflow: hidden;
     user-select: none;
-    /* UI Feel */
 }
 
-/* SCROLLBARS */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
+/* APP LAYOUT */
 .app-container {
     display: flex;
     height: 100vh;
@@ -57,6 +37,13 @@ body {
     flex-direction: column;
 }
 
+.main-content {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+}
+
+/* SIDEBAR & NAV */
 .brand {
     font-size: 20px;
     font-weight: 700;
@@ -77,9 +64,13 @@ body {
     margin-bottom: 5px;
     transition: 0.2s;
     font-weight: 500;
+    width: 100%;
+    /* Fixes alignment issue */
+    outline: none;
 }
 
-.nav-btn:hover {
+.nav-btn:hover,
+.nav-btn:focus {
     background: rgba(255, 255, 255, 0.05);
     color: white;
 }
@@ -89,12 +80,7 @@ body {
     color: white;
 }
 
-.main-content {
-    flex: 1;
-    padding: 25px;
-    overflow-y: auto;
-}
-
+/* GENERAL UI */
 .page-title {
     font-size: 22px;
     font-weight: 700;
@@ -110,7 +96,13 @@ body {
     border: 1px solid var(--border);
 }
 
-/* GRID & DASHBOARD */
+.flex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* DASHBOARD */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -139,6 +131,11 @@ body {
     color: #2563eb;
 }
 
+.purple {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
 .red {
     background: #fef2f2;
     color: #dc2626;
@@ -149,13 +146,8 @@ body {
     color: #ea580c;
 }
 
-.green {
-    background: #f0fdf4;
-    color: #16a34a;
-}
-
 .card-value {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
 }
 
@@ -185,7 +177,7 @@ body {
     color: #4b5563;
 }
 
-/* POS LAYOUT */
+/* POS */
 .pos-layout {
     display: grid;
     grid-template-columns: 2.5fr 1fr;
@@ -213,6 +205,7 @@ body {
     position: relative;
 }
 
+/* TABLE */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -238,12 +231,20 @@ td {
 }
 
 .badge {
-    background: #e0f2fe;
-    color: #0369a1;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
+}
+
+.badge-green {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-red {
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .btn-icon {
@@ -262,7 +263,7 @@ td {
     font-style: italic;
 }
 
-/* FORMS & BUTTONS */
+/* FORMS */
 input,
 select {
     width: 100%;
@@ -277,6 +278,11 @@ input:focus,
 select:focus {
     border-color: var(--primary-light);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+input:disabled {
+    background-color: #f3f4f6;
+    cursor: not-allowed;
 }
 
 .btn-primary {
@@ -303,6 +309,16 @@ select:focus {
     cursor: pointer;
 }
 
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
 .full-width {
     width: 100%;
     margin-top: 20px;
@@ -311,7 +327,7 @@ select:focus {
     letter-spacing: 0.5px;
 }
 
-/* MODALS */
+/* MODAL */
 .modal-overlay,
 .loader-overlay {
     position: fixed;
@@ -417,7 +433,7 @@ select:focus {
     }
 }
 
-/* === PRINT STYLES (80mm Receipt) === */
+/* === THERMAL PRINT STYLES (80mm) === */
 @media print {
     body * {
         visibility: hidden;
@@ -433,58 +449,50 @@ select:focus {
         left: 0;
         top: 0;
         width: 80mm;
-        padding: 5mm;
         font-family: 'Courier New', monospace;
         font-size: 12px;
         color: black;
+        background: white;
     }
 
     .receipt-container {
         width: 100%;
+        padding: 2mm 5mm;
     }
 
     .center {
         text-align: center;
-        margin: 5px 0;
+    }
+
+    .bold {
+        font-weight: bold;
     }
 
     .dashed {
         border-top: 1px dashed #000;
-        margin: 10px 0;
+        margin: 5px 0;
     }
 
     .meta {
         display: flex;
         justify-content: space-between;
-        margin: 5px 0;
+        margin: 2px 0;
+        font-size: 11px;
     }
 
     table {
         width: 100%;
-        margin: 10px 0;
+        margin: 5px 0;
+        font-size: 12px;
     }
 
     th {
         border-bottom: 1px dashed #000;
-        padding: 5px 0;
-    }
-
-    .left {
+        padding: 2px 0;
         text-align: left;
     }
 
     .right {
-        text-align: right;
-    }
-
-    .item-name {
-        max-width: 40mm;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .price {
         text-align: right;
     }
 
@@ -493,6 +501,6 @@ select:focus {
         justify-content: space-between;
         font-weight: bold;
         font-size: 14px;
-        margin-top: 10px;
+        margin-top: 5px;
     }
 }

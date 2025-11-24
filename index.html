@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy POS</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="global-loader" class="loader-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="brand">💊 PharmaCore</div>
+            <div class="menu">
+                <button class="nav-btn active" onclick="nav('dashboard')">Dashboard</button>
+                <button class="nav-btn" onclick="nav('pos')">POS Billing</button>
+                <button class="nav-btn" onclick="nav('inventory')">Inventory</button>
+                <button class="nav-btn" onclick="nav('purchases')">Purchases</button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+
+            <div id="dashboard" class="view fade-in">
+                <h2 class="page-title">Dashboard</h2>
+                <div class="dashboard-grid">
+                    <div class="card summary-card">
+                        <div class="icon-wrapper blue">💰</div>
+                        <div>
+                            <div class="card-value" id="d-sales-total">₹0.00</div>
+                            <div class="card-label">Today's Sales (<span id="d-sales-count">0</span>)</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="icon-wrapper red">⚠️</div>
+                        <div>
+                            <div class="card-value" id="d-low-count">0</div>
+                            <div class="card-label">Low Stock</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="icon-wrapper orange">⏰</div>
+                        <div>
+                            <div class="card-value" id="d-expiry-count">0</div>
+                            <div class="card-label">Expiring Soon</div>
+                        </div>
+                    </div>
+                    <div class="card summary-card">
+                        <div class="icon-wrapper green">🔔</div>
+                        <div>
+                            <div class="card-value" id="d-due-count">0</div>
+                            <div class="card-label">Payment Dues</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alerts-grid">
+                    <div class="card">
+                        <h3>Low Stock</h3>
+                        <ul id="lowStockList" class="alert-list"></ul>
+                    </div>
+                    <div class="card">
+                        <h3>Expiries</h3>
+                        <ul id="expiryList" class="alert-list"></ul>
+                    </div>
+                    <div class="card">
+                        <h3>Reminders</h3>
+                        <ul id="dueList" class="alert-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pos" class="view hidden fade-in">
+                <h2 class="page-title">POS Billing</h2>
+                <div class="pos-layout">
+                    <div class="pos-left card">
+                        <div class="search-bar-container">
+                            <input type="text" id="posInput" placeholder="Scan barcode or type name..." autofocus
+                                autocomplete="off">
+                            <button class="btn-primary" onclick="triggerSearch()">Search</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="cartTable">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Price</th>
+                                        <th>Qty</th>
+                                        <th>Total</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div id="emptyCartMsg" class="empty-state">Cart is empty.</div>
+                        </div>
+                    </div>
+                    <div class="pos-right card">
+                        <h3>Details</h3>
+                        <div class="form-group"><label>Customer</label><input type="text" id="custName"
+                                placeholder="Name (Optional)"></div>
+                        <div class="form-group"><label>Payment</label>
+                            <select id="payMethod">
+                                <option>Cash</option>
+                                <option>Card</option>
+                                <option>UPI</option>
+                            </select>
+                        </div>
+                        <div class="bill-summary">
+                            <div class="summary-row"><span>Subtotal:</span> <span id="billSubtotal">₹0.00</span></div>
+                            <div class="summary-row total"><span>Total:</span> <span id="billTotal">₹0.00</span></div>
+                        </div>
+                        <button class="btn-primary full-width" onclick="checkout()">COMPLETE & PRINT</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="inventory" class="view hidden fade-in">
+                <div class="flex-header">
+                    <h2 class="page-title">Inventory</h2>
+                    <div style="display:flex; gap:10px;">
+                        <select id="invFilter" onchange="loadInventory()"
+                            style="padding:8px; border-radius:6px; border:1px solid #ccc;">
+                            <option value="All">All Categories</option>
+                            <option value="Medicine">Medicine</option>
+                            <option value="Drugs">Drugs</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <button class="btn-primary" onclick="openModal('modal-add-stock')">+ Add Stock</button>
+                    </div>
+                </div>
+                <div class="card table-wrapper" style="margin-top:20px;">
+                    <table id="invTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Barcode</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Expiry</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="purchases" class="view hidden fade-in">
+                <h2 class="page-title">Purchases</h2>
+                <div class="card" style="max-width:600px; margin-top:20px;">
+                    <div class="form-group"><label>Supplier</label><input id="pSup"></div>
+                    <div class="form-group"><label>Invoice No</label><input id="pInv"></div>
+                    <div class="form-group"><label>Amount (₹)</label><input type="number" id="pAmt"></div>
+                    <div class="form-group"><label>Due Date</label><input type="date" id="pDue"></div>
+                    <button class="btn-primary full-width" onclick="savePurchase()">Save Invoice</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-add-stock" class="modal-overlay hidden">
+        <div class="modal-content fade-in">
+            <div class="modal-header">
+                <h3>Add Stock</h3><button class="close-btn" onclick="closeModal('modal-add-stock')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group"><label>Barcode *</label><input id="mBar" onblur="checkProductExistence()">
+                    </div>
+                    <div class="form-group"><label>Category *</label><select id="mCat">
+                            <option>Medicine</option>
+                            <option>Drugs</option>
+                            <option>Others</option>
+                        </select></div>
+                </div>
+                <div class="form-group"><label>Name *</label><input id="mName"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Price *</label><input type="number" id="mPrice"></div>
+                </div>
+                <hr style="margin: 15px 0; border:0; border-top:1px solid #eee;">
+                <div class="form-row">
+                    <div class="form-group"><label>Qty *</label><input type="number" id="mQty"></div>
+                    <div class="form-group"><label>Expiry *</label><input type="date" id="mExp"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-add-stock')">Cancel</button>
+                <button class="btn-primary" onclick="submitStock()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-area"></div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>

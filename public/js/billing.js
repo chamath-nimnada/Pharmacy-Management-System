@@ -1,12 +1,12 @@
 let cart = [];
 let products = [];
 
-// Load products for search
+// Load products for search (grouped for search efficiency)
 async function fetchProductsForBilling() {
     try {
         const res = await fetch('/api/products');
         const data = await res.json();
-        products = data.data;
+        products = data.data; // Includes all batches
     } catch (e) { console.error(e); }
 }
 fetchProductsForBilling();
@@ -16,15 +16,12 @@ const barcodeInput = document.getElementById('barcode-input');
 barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const val = barcodeInput.value.trim();
-        // Try to find by Barcode OR Name
-        const product = products.find(p =>
-            p.barcode === val ||
-            p.name.toLowerCase() === val.toLowerCase()
-        );
+        // Find ANY batch matching barcode/name to get Product Info
+        const product = products.find(p => p.barcode === val || p.name.toLowerCase() === val.toLowerCase());
 
         if (product) {
             addToCart(product);
-            barcodeInput.value = ''; // Clear
+            barcodeInput.value = '';
         } else {
             alert('Product not found! Check inventory.');
         }
@@ -32,10 +29,12 @@ barcodeInput.addEventListener('keypress', (e) => {
 });
 
 function addToCart(product) {
-    const existing = cart.find(c => c.id === product.id);
+    // Add based on unique Barcode
+    const existing = cart.find(c => c.barcode === product.barcode);
     if (existing) {
         existing.buyQty++;
     } else {
+        // We only store the barcode in cart. Backend handles FIFO deduction from batches.
         cart.push({ ...product, buyQty: 1 });
     }
     renderCart();
@@ -95,24 +94,24 @@ async function processSale() {
     const result = await res.json();
 
     if (result.saleId) {
-        // 2. GENERATE BILL (Populate the hidden Print Area)
+        // 2. GENERATE BILL
         document.getElementById('rec-bill-no').innerText = result.saleId;
         document.getElementById('rec-date').innerText = new Date().toLocaleString();
 
         const recItemsBody = document.getElementById('rec-items');
-        recItemsBody.innerHTML = ''; // Clear previous
+        recItemsBody.innerHTML = '';
 
         cart.forEach(item => {
             recItemsBody.innerHTML += `
-                <tr style="border-bottom: 1px dashed #000;">
-                    <td style="padding: 5px 0;">${item.name}</td>
-                    <td style="padding: 5px 0; text-align:center;">${item.buyQty}</td>
-                    <td style="padding: 5px 0; text-align:right;">${(item.price * item.buyQty).toFixed(2)}</td>
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.buyQty}</td>
+                    <td style="text-align:right;">${(item.price * item.buyQty).toFixed(2)}</td>
                 </tr>
             `;
         });
 
-        document.getElementById('rec-total').innerText = total.toFixed(2);
+        document.getElementById('rec-total').innerText = `LKR ${total.toFixed(2)}`;
 
         // 3. Print
         window.print();
@@ -120,7 +119,8 @@ async function processSale() {
         // 4. Cleanup
         cart = [];
         renderCart();
-        loadDashboard(); // Refresh dash
+        loadDashboard();
+        fetchProductsForBilling(); // Refresh stock data
     } else {
         alert("Error processing sale: " + result.error);
     }

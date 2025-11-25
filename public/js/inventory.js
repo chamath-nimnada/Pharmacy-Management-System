@@ -20,7 +20,7 @@ async function loadInventory() {
     }
 }
 
-// 2. Render Table Rows
+// 2. Render Table Rows (GROUPED BY BARCODE)
 function renderInventory(products) {
     const tbody = document.getElementById('inventory-list');
     if (!tbody) return;
@@ -32,33 +32,47 @@ function renderInventory(products) {
         return;
     }
 
+    // Group items by barcode to show Total Quantity
+    const grouped = {};
     products.forEach(item => {
-        // Safe value handling
-        const barcode = item.barcode || '-';
-        const name = item.name || 'Unknown Product';
-        const category = item.category || 'Other';
-        const price = parseFloat(item.price || 0).toFixed(2);
-        const qty = parseInt(item.qty || 0);
-        const expiry = item.expiry_date || '-';
+        if (!grouped[item.barcode]) {
+            grouped[item.barcode] = {
+                ...item,
+                totalQty: 0,
+                batches: []
+            };
+        }
+        grouped[item.barcode].totalQty += item.qty;
+        grouped[item.barcode].batches.push(item);
+    });
 
-        // Check for Low Stock (Red highlight if low)
+    Object.values(grouped).forEach(group => {
+        // Find nearest expiry date among batches
+        group.batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
+        const nearestExpiry = group.batches[0].expiry_date;
+        const batchCount = group.batches.length;
+
+        // Check for Low Stock (Red highlight if total qty < 5)
         let rowStyle = '';
-        if (qty < 5) rowStyle = 'background: #fff0f0; color: #d63031;';
+        if (group.totalQty < 5) rowStyle = 'background: #fff0f0; color: #d63031;';
 
         tbody.innerHTML += `
             <tr style="${rowStyle}">
-                <td style="font-family:monospace; font-weight:bold;">${barcode}</td>
-                <td>${name}</td>
-                <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${category}</span></td>
-                <td>LKR ${price}</td>
-                <td>${qty}</td>
-                <td>${expiry}</td>
+                <td style="font-family:monospace; font-weight:bold;">${group.barcode}</td>
+                <td>
+                    ${group.name} 
+                    ${batchCount > 1 ? `<span style="font-size:10px; color:blue; font-weight:bold;">(${batchCount} Batches)</span>` : ''}
+                </td>
+                <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${group.category}</span></td>
+                <td>LKR ${parseFloat(group.price).toFixed(2)}</td>
+                <td style="font-weight:bold;">${group.totalQty}</td>
+                <td>${nearestExpiry}</td>
             </tr>
         `;
     });
 }
 
-// 3. Add New Product
+// 3. Add New Product (UPDATED: Removed Alert)
 async function addProduct() {
     const barcodeEl = document.getElementById('inv-barcode');
     const nameEl = document.getElementById('inv-name');
@@ -66,8 +80,9 @@ async function addProduct() {
     const qtyEl = document.getElementById('inv-qty');
     const catEl = document.getElementById('inv-category');
     const expEl = document.getElementById('inv-expiry');
+    const saveBtn = document.querySelector('#add-product-form button.btn-success'); // Get the save button
 
-    if (!barcodeEl || !nameEl) return alert("Error: Form elements not found.");
+    if (!barcodeEl || !nameEl) return;
 
     const payload = {
         barcode: barcodeEl.value.trim(),
@@ -79,10 +94,15 @@ async function addProduct() {
     };
 
     if (!payload.barcode || !payload.name) {
-        return alert("Please enter a Barcode and Product Name.");
+        return alert("Please enter a Barcode and Product Name."); // Simple validation alert is okay if rare, but better to use UI
     }
 
     try {
+        // Disable button to prevent double click
+        saveBtn.disabled = true;
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "Saving...";
+
         const res = await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,20 +112,35 @@ async function addProduct() {
         const result = await res.json();
 
         if (res.ok) {
-            alert("Product Added Successfully!");
-            // Hide form and clear inputs
-            document.getElementById('add-product-form').style.display = 'none';
-            barcodeEl.value = '';
-            nameEl.value = '';
-            priceEl.value = '';
-            qtyEl.value = '';
-            loadInventory(); // Refresh list
+            // SUCCESS: Show visual feedback instead of alert
+            saveBtn.innerText = "✔ Saved!";
+            saveBtn.style.backgroundColor = "#059669"; // Darker green
+
+            setTimeout(() => {
+                // Hide form and reset
+                document.getElementById('add-product-form').style.display = 'none';
+                barcodeEl.value = '';
+                nameEl.value = '';
+                priceEl.value = '';
+                qtyEl.value = '';
+
+                // Reset Button
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalText;
+                saveBtn.style.backgroundColor = ""; // Reset color
+
+                loadInventory(); // Refresh list
+            }, 800); // Wait 0.8 seconds so user sees "Saved!"
         } else {
             alert("Error: " + (result.error || "Could not save product."));
+            saveBtn.disabled = false;
+            saveBtn.innerText = originalText;
         }
     } catch (e) {
         console.error(e);
         alert("Network Error: Could not contact server.");
+        saveBtn.disabled = false;
+        saveBtn.innerText = originalText;
     }
 }
 
@@ -119,12 +154,12 @@ function filterInventory() {
 
     const filtered = inventoryData.filter(item => {
         // 1. Check Search Text (Name or Barcode)
-        const name = (item.name || '').toLowerCase();
+        const itemName = (item.name || '').toLowerCase();
         const barcode = (item.barcode || '').toString().toLowerCase();
-        const matchesSearch = name.includes(searchText) || barcode.includes(searchText);
+
+        const matchesSearch = itemName.includes(searchText) || barcode.includes(searchText);
 
         // 2. Check Category (Exact Match or 'all')
-        // Ensure your HTML <option> values match these exactly (e.g. "Medicine", "Drug")
         const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
 
         return matchesSearch && matchesCategory;

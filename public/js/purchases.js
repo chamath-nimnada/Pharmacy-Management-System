@@ -50,7 +50,7 @@ function renderPurchases(list) {
     });
 }
 
-// 3. Add New Invoice
+// 3. Add New Invoice (UPDATED: Removed Alert)
 async function addInvoice() {
     const supEl = document.getElementById('pur-supplier');
     const comEl = document.getElementById('pur-company');
@@ -58,6 +58,9 @@ async function addInvoice() {
     const amtEl = document.getElementById('pur-amount');
     const dateEl = document.getElementById('pur-date');
     const statEl = document.getElementById('pur-status');
+
+    // Select the "Add Record" button inside the Purchases section
+    const saveBtn = document.querySelector('#purchases .form-grid button.btn-primary');
 
     if (!invEl || !amtEl) return;
 
@@ -75,21 +78,54 @@ async function addInvoice() {
     }
 
     try {
-        await fetch('/api/purchases', {
+        // Disable button & show loading state
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            var originalText = saveBtn.innerText;
+            saveBtn.innerText = "Saving...";
+        }
+
+        const res = await fetch('/api/purchases', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        alert("Invoice Added Successfully");
+        if (res.ok) {
+            // SUCCESS: Visual Feedback
+            if (saveBtn) {
+                saveBtn.innerText = "✔ Saved!";
+                saveBtn.style.backgroundColor = "#059669"; // Green
+            }
 
-        // Clear main inputs
-        invEl.value = '';
-        amtEl.value = '';
+            setTimeout(() => {
+                // Clear inputs (Keeping Supplier/Company filled is usually helpful for multiple entries)
+                invEl.value = '';
+                amtEl.value = '';
 
-        loadPurchases(); // Reload list
+                // Reset Button
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = originalText;
+                    saveBtn.style.backgroundColor = "";
+                }
+
+                loadPurchases(); // Reload list
+            }, 800);
+        } else {
+            const data = await res.json();
+            alert("Error: " + (data.error || "Could not save invoice."));
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalText;
+            }
+        }
     } catch (e) {
         alert("Error saving invoice.");
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerText = originalText;
+        }
     }
 }
 
@@ -111,11 +147,8 @@ function filterStatus(status) {
     // Visual: Update button colors
     const btns = document.querySelectorAll('.filter-btns button');
     btns.forEach(b => {
-        // Reset style
         b.style.background = '#f1f5f9';
         b.style.color = '#333';
-
-        // Highlight active button
         if (b.innerText === status || (status === 'all' && b.innerText === 'All')) {
             b.style.background = '#0d9488'; // Teal color
             b.style.color = '#fff';
@@ -126,7 +159,6 @@ function filterStatus(status) {
 }
 
 function filterPurchases() {
-    // Called when typing in search bar
     applyPurchasesFilter();
 }
 
@@ -134,7 +166,6 @@ function applyPurchasesFilter() {
     const searchInput = document.getElementById('pur-search');
     const txt = searchInput ? searchInput.value.toLowerCase() : '';
 
-    // 1. FILTERING
     let filtered = allPurchases.filter(p => {
         const invNum = (p.invoice_number || '').toLowerCase();
         const comp = (p.company_name || '').toLowerCase();
@@ -145,8 +176,6 @@ function applyPurchasesFilter() {
         return matchesText && matchesStatus;
     });
 
-    // 2. SORTING (Nearest Date First)
-    // We sort directly on the client side to ensure order persists after filtering
     filtered.sort((a, b) => {
         const dateA = new Date(a.due_date);
         const dateB = new Date(b.due_date);

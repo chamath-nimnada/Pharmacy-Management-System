@@ -13,7 +13,7 @@ db.serialize(() => {
     // Products Table
     db.run(`CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        barcode TEXT UNIQUE,
+        barcode TEXT, 
         name TEXT,
         price REAL,
         category TEXT,
@@ -37,7 +37,7 @@ db.serialize(() => {
         invoice_number TEXT,
         amount REAL,
         due_date DATE,
-        status TEXT DEFAULT 'Pending' -- Pending or Paid
+        status TEXT DEFAULT 'Pending'
     )`);
 });
 

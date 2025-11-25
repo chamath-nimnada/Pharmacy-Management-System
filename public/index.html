@@ -295,19 +295,36 @@
     </main>
 
     <div id="receipt-print-area" class="print-only">
-        <div style="text-align:center; font-family: monospace;">
-            <h2 style="margin:0;">CITY PHARMACY</h2>
-            <p>123 Main St, Colombo</p>
-            <p>--------------------------------</p>
-            <p style="text-align:left;">Bill: <span id="rec-bill-no"></span></p>
-            <p style="text-align:left;">Date: <span id="rec-date"></span></p>
-            <p>--------------------------------</p>
-            <table style="width:100%; text-align:left;">
-                <tbody id="rec-items"></tbody>
-            </table>
-            <p>--------------------------------</p>
-            <h3 style="text-align:right;">TOTAL: <span id="rec-total"></span></h3>
-            <p style="text-align:center; margin-top:20px;">Thank You!</p>
+        <div class="rec-header">
+            <h2>CITY PHARMACY</h2>
+            <p>123 Main Street, Colombo</p>
+            <p>Tel: 011-2345678</p>
+        </div>
+
+        <div class="rec-meta">
+            <p>Bill No: <span id="rec-bill-no"></span></p>
+            <p>Date: <span id="rec-date"></span></p>
+        </div>
+
+        <table class="rec-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Item</th>
+                    <th style="width: 15%;">Qty</th>
+                    <th style="width: 35%; text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="rec-items">
+            </tbody>
+        </table>
+
+        <div class="rec-total">
+            TOTAL: <span id="rec-total"></span>
+        </div>
+
+        <div class="rec-footer">
+            <p>Thank You for your purchase!</p>
+            <p>No Returns on Medicine</p>
         </div>
     </div>
 
@@ -317,10 +334,11 @@
     <script src="js/purchases.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/history.js"></script>
+
     <script>
-        // Set Date
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     </script>
+
 </body>
 
 </html>

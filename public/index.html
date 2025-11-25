@@ -142,20 +142,23 @@
         <section id="inventory" class="view hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1>Inventory</h1>
-                <button class="btn-primary"
-                    onclick="document.getElementById('add-product-form').style.display='block'">+ Add Product</button>
+                <button class="btn-primary" onclick="document.getElementById('add-product-form').style.display='block'">
+                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add
+                    Product
+                </button>
             </div>
 
-            <div id="add-product-form" class="card form-card" style="display:none; border: 1px solid var(--primary);">
-                <div style="display:flex; justify-content:space-between;">
+            <div id="add-product-form" class="card form-card"
+                style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                     <h3>Add New Item</h3>
                     <button onclick="document.getElementById('add-product-form').style.display='none'"
-                        style="background:none;">✕</button>
+                        style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
                     <input type="text" id="inv-barcode" placeholder="Scan Barcode">
                     <input type="text" id="inv-name" placeholder="Product Name">
-                    <input type="number" id="inv-price" placeholder="Price">
+                    <input type="number" id="inv-price" placeholder="Price (LKR)">
                     <input type="number" id="inv-qty" placeholder="Quantity">
                     <select id="inv-category">
                         <option value="Medicine">Medicine</option>
@@ -167,9 +170,20 @@
                 </div>
             </div>
 
-            <div class="search-bar" style="margin-bottom: 20px;">
-                <span class="material-icons-round">search</span>
-                <input type="text" id="inv-search" placeholder="Search inventory..." onkeyup="filterInventory()">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="search-bar"
+                    style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                    <span class="material-icons-round" style="color: var(--text-muted);">search</span>
+                    <input type="text" id="inv-search" placeholder="Search by Name or Barcode..."
+                        onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
+                </div>
+
+                <select id="inv-filter-cat" onchange="filterInventory()" style="width: 200px;">
+                    <option value="all">All Categories</option>
+                    <option value="Medicine">Medicine</option>
+                    <option value="Drug">Drug</option>
+                    <option value="Other">Other</option>
+                </select>
             </div>
 
             <div class="table-container">
@@ -190,20 +204,43 @@
         </section>
 
         <section id="purchases" class="view hidden">
-            <h1>Purchases</h1>
+            <h1>Purchases & Invoices</h1>
+
             <div class="card form-card">
                 <h3>Record New Invoice</h3>
                 <div class="form-grid">
                     <input type="text" id="pur-supplier" placeholder="Supplier Name">
-                    <input type="text" id="pur-company" placeholder="Company">
-                    <input type="text" id="pur-invoice" placeholder="Invoice #">
-                    <input type="number" id="pur-amount" placeholder="Amount">
-                    <input type="date" id="pur-date">
+                    <input type="text" id="pur-company" placeholder="Company Name">
+                    <input type="text" id="pur-invoice" placeholder="Invoice Number">
+                    <input type="number" id="pur-amount" placeholder="Amount (LKR)">
+                    <div style="display:flex; flex-direction:column;">
+                        <label style="font-size:12px; color:var(--text-muted);">Due Date</label>
+                        <input type="date" id="pur-date">
+                    </div>
                     <select id="pur-status">
                         <option value="Pending">Pending</option>
                         <option value="Paid">Paid</option>
                     </select>
                     <button onclick="addInvoice()" class="btn-primary">Add Record</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+                <div class="search-bar"
+                    style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                    <span class="material-icons-round" style="color: var(--text-muted);">search</span>
+                    <input type="text" id="pur-search" placeholder="Search Invoice #..." onkeyup="filterPurchases()"
+                        style="border: none; box-shadow: none; background: transparent;">
+                </div>
+
+                <div class="filter-btns"
+                    style="display: flex; gap: 10px; background: white; padding: 5px; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
+                    <button onclick="filterStatus('all')"
+                        style="padding: 8px 16px; border-radius: 6px; background: var(--primary); color: white; font-weight: 500;">All</button>
+                    <button onclick="filterStatus('Pending')"
+                        style="padding: 8px 16px; border-radius: 6px; background: transparent; color: var(--text-main); font-weight: 500;">Pending</button>
+                    <button onclick="filterStatus('Paid')"
+                        style="padding: 8px 16px; border-radius: 6px; background: transparent; color: var(--text-main); font-weight: 500;">Paid</button>
                 </div>
             </div>
 
@@ -213,6 +250,7 @@
                         <tr>
                             <th>Due Date</th>
                             <th>Invoice #</th>
+                            <th>Company</th>
                             <th>Supplier</th>
                             <th>Amount</th>
                             <th>Status</th>

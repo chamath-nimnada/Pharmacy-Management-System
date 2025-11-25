@@ -5,32 +5,54 @@ async function loadInventory() {
     try {
         const res = await fetch('/api/products');
         const data = await res.json();
-        inventoryData = data.data; // Store globally for filtering
-        renderInventory(inventoryData);
+
+        if (data.data) {
+            inventoryData = data.data;
+            // Apply filter immediately after loading
+            filterInventory();
+        } else {
+            console.error("No data received from API");
+        }
     } catch (error) {
         console.error("Error loading inventory:", error);
+        const tbody = document.getElementById('inventory-list');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6">Error connecting to server.</td></tr>';
     }
 }
 
 // 2. Render Table Rows
 function renderInventory(products) {
     const tbody = document.getElementById('inventory-list');
+    if (!tbody) return;
+
     tbody.innerHTML = '';
 
+    if (!products || products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
+        return;
+    }
+
     products.forEach(item => {
-        // Highlight expiring items logic
-        const daysLeft = Math.ceil((new Date(item.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-        let statusStyle = '';
-        if (item.qty < 5) statusStyle = 'background: #fff1f2; color: #e11d48;'; // Low stock Red
+        // Safe value handling
+        const barcode = item.barcode || '-';
+        const name = item.name || 'Unknown Product';
+        const category = item.category || 'Other';
+        const price = parseFloat(item.price || 0).toFixed(2);
+        const qty = parseInt(item.qty || 0);
+        const expiry = item.expiry_date || '-';
+
+        // Check for Low Stock (Red highlight if low)
+        let rowStyle = '';
+        if (qty < 5) rowStyle = 'background: #fff0f0; color: #d63031;';
 
         tbody.innerHTML += `
-            <tr style="${statusStyle}">
-                <td style="font-family:monospace; font-weight:bold;">${item.barcode}</td>
-                <td>${item.name}</td>
-                <td><span class="badge" style="background:#f1f5f9; color:#475569;">${item.category}</span></td>
-                <td>LKR ${item.price.toFixed(2)}</td>
-                <td>${item.qty}</td>
-                <td>${item.expiry_date}</td>
+            <tr style="${rowStyle}">
+                <td style="font-family:monospace; font-weight:bold;">${barcode}</td>
+                <td>${name}</td>
+                <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${category}</span></td>
+                <td>LKR ${price}</td>
+                <td>${qty}</td>
+                <td>${expiry}</td>
             </tr>
         `;
     });
@@ -38,53 +60,78 @@ function renderInventory(products) {
 
 // 3. Add New Product
 async function addProduct() {
+    const barcodeEl = document.getElementById('inv-barcode');
+    const nameEl = document.getElementById('inv-name');
+    const priceEl = document.getElementById('inv-price');
+    const qtyEl = document.getElementById('inv-qty');
+    const catEl = document.getElementById('inv-category');
+    const expEl = document.getElementById('inv-expiry');
+
+    if (!barcodeEl || !nameEl) return alert("Error: Form elements not found.");
+
     const payload = {
-        barcode: document.getElementById('inv-barcode').value,
-        name: document.getElementById('inv-name').value,
-        price: parseFloat(document.getElementById('inv-price').value),
-        qty: parseInt(document.getElementById('inv-qty').value),
-        category: document.getElementById('inv-category').value,
-        expiry_date: document.getElementById('inv-expiry').value
+        barcode: barcodeEl.value.trim(),
+        name: nameEl.value.trim(),
+        price: parseFloat(priceEl.value || 0),
+        qty: parseInt(qtyEl.value || 0),
+        category: catEl.value,
+        expiry_date: expEl.value
     };
 
-    // Validation
-    if (!payload.barcode || !payload.name || !payload.price) {
-        return alert("Please fill in all required fields.");
+    if (!payload.barcode || !payload.name) {
+        return alert("Please enter a Barcode and Product Name.");
     }
 
-    const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
+    try {
+        const res = await fetch('/api/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-    if (res.ok) {
-        alert("Product Added Successfully!");
-        document.getElementById('add-product-form').style.display = 'none'; // Close form
-        clearInputs();
-        loadInventory(); // Refresh table
-    } else {
-        alert("Error: Barcode might already exist.");
+        const result = await res.json();
+
+        if (res.ok) {
+            alert("Product Added Successfully!");
+            // Hide form and clear inputs
+            document.getElementById('add-product-form').style.display = 'none';
+            barcodeEl.value = '';
+            nameEl.value = '';
+            priceEl.value = '';
+            qtyEl.value = '';
+            loadInventory(); // Refresh list
+        } else {
+            alert("Error: " + (result.error || "Could not save product."));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Network Error: Could not contact server.");
     }
 }
 
-function clearInputs() {
-    document.querySelectorAll('#add-product-form input').forEach(input => input.value = '');
-}
-
-// 4. Filter Logic (Search + Category)
+// 4. FILTER LOGIC (Category + Search)
 function filterInventory() {
-    const searchTerm = document.getElementById('inv-search').value.toLowerCase();
+    const searchEl = document.getElementById('inv-search');
+    const catEl = document.getElementById('inv-filter-cat');
 
-    // We filter the global 'inventoryData' array
+    const searchText = searchEl ? searchEl.value.toLowerCase() : '';
+    const selectedCategory = catEl ? catEl.value : 'all';
+
     const filtered = inventoryData.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchTerm) ||
-            item.barcode.includes(searchTerm);
-        return matchesSearch;
+        // 1. Check Search Text (Name or Barcode)
+        const name = (item.name || '').toLowerCase();
+        const barcode = (item.barcode || '').toString().toLowerCase();
+        const matchesSearch = name.includes(searchText) || barcode.includes(searchText);
+
+        // 2. Check Category (Exact Match or 'all')
+        // Ensure your HTML <option> values match these exactly (e.g. "Medicine", "Drug")
+        const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
+
+        return matchesSearch && matchesCategory;
     });
 
     renderInventory(filtered);
 }
 
-// Initialize
+// Initialize on page load
 loadInventory();

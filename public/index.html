@@ -105,7 +105,8 @@
                             <thead style="position: sticky; top: 0; background: #fff; z-index: 2;">
                                 <tr>
                                     <th>Item</th>
-                                    <th>Price</th>
+                                    <th>Category</th>
+                                    <th>Unit Price</th>
                                     <th>Qty</th>
                                     <th>Total</th>
                                     <th></th>
@@ -118,7 +119,26 @@
 
                 <div class="checkout-panel">
                     <div>
-                        <h3 style="margin-bottom: 20px; color: var(--text-muted);">Payment Details</h3>
+                        <h3 style="margin-bottom: 15px; color: var(--text-muted);">Discounts (%)</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                            <div>
+                                <label style="font-size:12px;">Medicine</label>
+                                <input type="number" id="disc-medicine" class="discount-input" placeholder="0" min="0"
+                                    max="100">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;">Drug</label>
+                                <input type="number" id="disc-drug" class="discount-input" placeholder="0" min="0"
+                                    max="100">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;">Other</label>
+                                <input type="number" id="disc-other" class="discount-input" placeholder="0" min="0"
+                                    max="100">
+                            </div>
+                        </div>
+
+                        <h3 style="margin-bottom: 15px; color: var(--text-muted);">Payment Details</h3>
                         <label style="display:block; margin-bottom:8px; font-weight:500;">Payment Method</label>
                         <select id="payment-method" style="margin-bottom: 20px;">
                             <option value="Cash">💵 Cash</option>
@@ -128,7 +148,8 @@
 
                     <div>
                         <div class="summary-row"><span>Subtotal</span><span id="sub-total">0.00</span></div>
-                        <div class="summary-row"><span>Tax (0%)</span><span>0.00</span></div>
+                        <div class="summary-row"><span>Discount</span><span id="disc-total"
+                                style="color:var(--danger)">0.00</span></div>
                         <div class="summary-row total"><span>Total</span><span id="grand-total">LKR 0.00</span></div>
 
                         <button onclick="processSale()" class="btn-checkout">
@@ -296,9 +317,10 @@
 
     <div id="receipt-print-area" class="print-only">
         <div class="rec-header">
-            <h2>CITY PHARMACY</h2>
-            <p>123 Main Street, Colombo</p>
-            <p>Tel: 011-2345678</p>
+            <h2><b>HIRU PHARMACY & GROCERY</b></h2>
+            <p>61/A, Biyagama Road, Balummahara,</p>
+            <p>Mudungoda</p>
+            <p>Tel: 070-2682795 | 071-7978277</p>
         </div>
 
         <div class="rec-meta">
@@ -309,16 +331,21 @@
         <table class="rec-table">
             <thead>
                 <tr>
-                    <th style="width: 50%;">Item</th>
-                    <th style="width: 15%;">Qty</th>
-                    <th style="width: 35%; text-align:right;">Amount</th>
+                    <th style="width: 35%;">Item</th>
+                    <th style="width: 25%;">Price</th>
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 30%; text-align:right;">Total</th>
                 </tr>
             </thead>
             <tbody id="rec-items">
             </tbody>
         </table>
 
-        <div class="rec-total">
+        <div id="rec-discounts"
+            style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;">
+        </div>
+
+        <div class="rec-total" id="rec-total-container">
             TOTAL: <span id="rec-total"></span>
         </div>
 

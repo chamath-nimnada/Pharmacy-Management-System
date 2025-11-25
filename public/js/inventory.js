@@ -72,7 +72,7 @@ function renderInventory(products) {
     });
 }
 
-// 3. Add New Product (UPDATED: Removed Alert)
+// 3. Add New Product (NON-BLOCKING UPDATE)
 async function addProduct() {
     const barcodeEl = document.getElementById('inv-barcode');
     const nameEl = document.getElementById('inv-name');
@@ -80,7 +80,7 @@ async function addProduct() {
     const qtyEl = document.getElementById('inv-qty');
     const catEl = document.getElementById('inv-category');
     const expEl = document.getElementById('inv-expiry');
-    const saveBtn = document.querySelector('#add-product-form button.btn-success'); // Get the save button
+    const saveBtn = document.querySelector('#add-product-form button.btn-success');
 
     if (!barcodeEl || !nameEl) return;
 
@@ -93,14 +93,28 @@ async function addProduct() {
         expiry_date: expEl.value
     };
 
+    // Helper to revert button text
+    const resetButton = (originalText, originalColor) => {
+        setTimeout(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerText = originalText;
+            saveBtn.style.backgroundColor = originalColor;
+        }, 1500);
+    };
+
+    const originalText = "Save Item";
+    const originalColor = ""; // Default from CSS
+
+    // Validation Feedback
     if (!payload.barcode || !payload.name) {
-        return alert("Please enter a Barcode and Product Name."); // Simple validation alert is okay if rare, but better to use UI
+        saveBtn.innerText = "⚠ Missing Info";
+        saveBtn.style.backgroundColor = "#ef4444"; // Red
+        resetButton(originalText, originalColor);
+        return;
     }
 
     try {
-        // Disable button to prevent double click
         saveBtn.disabled = true;
-        const originalText = saveBtn.innerText;
         saveBtn.innerText = "Saving...";
 
         const res = await fetch('/api/products', {
@@ -112,12 +126,11 @@ async function addProduct() {
         const result = await res.json();
 
         if (res.ok) {
-            // SUCCESS: Show visual feedback instead of alert
+            // SUCCESS
             saveBtn.innerText = "✔ Saved!";
-            saveBtn.style.backgroundColor = "#059669"; // Darker green
+            saveBtn.style.backgroundColor = "#059669"; // Green
 
             setTimeout(() => {
-                // Hide form and reset
                 document.getElementById('add-product-form').style.display = 'none';
                 barcodeEl.value = '';
                 nameEl.value = '';
@@ -127,20 +140,22 @@ async function addProduct() {
                 // Reset Button
                 saveBtn.disabled = false;
                 saveBtn.innerText = originalText;
-                saveBtn.style.backgroundColor = ""; // Reset color
+                saveBtn.style.backgroundColor = originalColor;
 
-                loadInventory(); // Refresh list
-            }, 800); // Wait 0.8 seconds so user sees "Saved!"
+                loadInventory(); // Auto refresh
+            }, 800);
         } else {
-            alert("Error: " + (result.error || "Could not save product."));
-            saveBtn.disabled = false;
-            saveBtn.innerText = originalText;
+            // Server Error Feedback
+            console.error(result.error);
+            saveBtn.innerText = "⚠ Error Saving";
+            saveBtn.style.backgroundColor = "#ef4444";
+            resetButton(originalText, originalColor);
         }
     } catch (e) {
         console.error(e);
-        alert("Network Error: Could not contact server.");
-        saveBtn.disabled = false;
-        saveBtn.innerText = originalText;
+        saveBtn.innerText = "⚠ Network Error";
+        saveBtn.style.backgroundColor = "#ef4444";
+        resetButton(originalText, originalColor);
     }
 }
 
@@ -153,13 +168,9 @@ function filterInventory() {
     const selectedCategory = catEl ? catEl.value : 'all';
 
     const filtered = inventoryData.filter(item => {
-        // 1. Check Search Text (Name or Barcode)
         const itemName = (item.name || '').toLowerCase();
         const barcode = (item.barcode || '').toString().toLowerCase();
-
         const matchesSearch = itemName.includes(searchText) || barcode.includes(searchText);
-
-        // 2. Check Category (Exact Match or 'all')
         const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
 
         return matchesSearch && matchesCategory;

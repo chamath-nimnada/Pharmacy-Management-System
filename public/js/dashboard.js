@@ -31,11 +31,18 @@ async function loadDashboard() {
                 style = 'color: var(--danger); font-weight:bold;';
             }
 
+            // REPLACED BLOCKING ALERT WITH INLINE ACTION
             alertTable.innerHTML += `
                 <tr>
                     <td>${item.name}</td>
                     <td style="${style}">${issue}</td>
-                    <td><button class="btn-sm" onclick="alert('Refill Ordered!')">Resolve</button></td>
+                    <td>
+                        <button class="btn-sm" 
+                            style="cursor:pointer; padding:4px 8px;"
+                            onclick="this.innerText='Ordered'; this.disabled=true; this.style.color='#999';">
+                            Resolve
+                        </button>
+                    </td>
                 </tr>
             `;
         });

@@ -3,16 +3,11 @@
 :root {
     /* Modern Color Palette */
     --primary: #0d9488;
-    /* Teal 600 - Medical/Clean */
     --primary-dark: #0f766e;
-    /* Teal 700 */
     --secondary: #64748b;
-    /* Slate 500 */
     --bg-body: #f1f5f9;
-    /* Slate 100 */
     --bg-surface: #ffffff;
     --text-main: #0f172a;
-    /* Slate 900 */
     --text-muted: #64748b;
     --danger: #ef4444;
     --success: #10b981;
@@ -40,6 +35,30 @@ body {
     display: flex;
     height: 100vh;
     overflow: hidden;
+}
+
+/* --- CUSTOM THIN STRIKETHROUGH --- */
+.strike-thin {
+    position: relative;
+    display: inline-block;
+    color: #999;
+    font-size: 10px;
+    /* Small font for original price */
+}
+
+.strike-thin::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    border-top: 1px solid #999;
+    /* Use border so it prints reliably */
+    transform: scaleY(0.5);
+    /* Shrink thickness to 0.5px */
+    transform-origin: center;
+    opacity: 0.7;
+    /* Make it slightly lighter */
 }
 
 /* --- SIDEBAR --- */
@@ -264,11 +283,10 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
-/* --- BILLING SECTION (SPECIAL LAYOUT) --- */
+/* --- BILLING SECTION --- */
 .billing-layout {
     display: grid;
     grid-template-columns: 2fr 1.2fr;
-    /* 60% Left, 40% Right */
     gap: 24px;
     height: calc(100vh - 100px);
 }
@@ -391,47 +409,38 @@ button {
     transform: translateY(-1px);
 }
 
-/* --- PRINT --- */
-/* --- PRINT SETTINGS (Optimized for Xprinter XP-80TS) --- */
+/* --- PRINT SETTINGS --- */
 .print-only {
     display: none;
 }
 
 @media print {
-
-    /* 1. Page Setup */
     @page {
         margin: 0;
         size: 80mm auto;
-        /* Force driver to use roll paper size */
     }
 
-    /* 2. Reset Body Layout */
     html,
     body {
         background: white;
         margin: 0;
         padding: 0;
         display: block !important;
-        /* Disable flexbox layout during print */
         height: auto !important;
         overflow: visible !important;
     }
 
-    /* 3. Hide The App Interface */
     .sidebar,
     .main-content {
         display: none !important;
     }
 
-    /* 4. Show The Receipt */
     .print-only {
         display: block !important;
         position: absolute;
         left: 0;
         top: 0;
         width: 72mm;
-        /* 80mm paper - margins */
         margin: 0;
         padding: 4mm;
         font-family: 'Courier New', Courier, monospace;
@@ -440,7 +449,6 @@ button {
         z-index: 9999;
     }
 
-    /* 5. Receipt Styling */
     .print-only * {
         visibility: visible !important;
         color: black !important;
@@ -462,7 +470,7 @@ button {
     }
 
     .rec-meta {
-        border-bottom: 1px dashed #000;
+        border-bottom: 0.5px dashed #000;
         margin-bottom: 5px;
         padding-bottom: 5px;
         font-size: 11px;
@@ -476,7 +484,7 @@ button {
 
     .rec-table th {
         text-align: left;
-        border-bottom: 1px dashed #000;
+        border-bottom: 0.5px dashed #000;
     }
 
     .rec-table td {
@@ -484,11 +492,11 @@ button {
     }
 
     .rec-total {
-        border-top: 1px dashed #000;
+        border-top: 0.5px dashed #000;
         margin-top: 5px;
         padding-top: 5px;
         text-align: right;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: bold;
     }
 

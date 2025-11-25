@@ -16,7 +16,7 @@ async function loadInventory() {
     } catch (error) {
         console.error("Error loading inventory:", error);
         const tbody = document.getElementById('inventory-list');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6">Error connecting to server.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8">Error connecting to server.</td></tr>';
     }
 }
 
@@ -28,7 +28,7 @@ function renderInventory(products) {
     tbody.innerHTML = '';
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
         return;
     }
 
@@ -58,11 +58,13 @@ function renderInventory(products) {
 
         tbody.innerHTML += `
             <tr style="${rowStyle}">
+                <td style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
                 <td style="font-family:monospace; font-weight:bold;">${group.barcode}</td>
                 <td>
                     ${group.name} 
                     ${batchCount > 1 ? `<span style="font-size:10px; color:blue; font-weight:bold;">(${batchCount} Batches)</span>` : ''}
                 </td>
+                <td style="color:#475569;">${group.company_name || '-'}</td>
                 <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${group.category}</span></td>
                 <td>LKR ${parseFloat(group.price).toFixed(2)}</td>
                 <td style="font-weight:bold;">${group.totalQty}</td>
@@ -76,6 +78,7 @@ function renderInventory(products) {
 async function addProduct() {
     const barcodeEl = document.getElementById('inv-barcode');
     const nameEl = document.getElementById('inv-name');
+    const companyEl = document.getElementById('inv-company'); // NEW
     const priceEl = document.getElementById('inv-price');
     const qtyEl = document.getElementById('inv-qty');
     const catEl = document.getElementById('inv-category');
@@ -87,13 +90,13 @@ async function addProduct() {
     const payload = {
         barcode: barcodeEl.value.trim(),
         name: nameEl.value.trim(),
+        company_name: companyEl.value.trim(), // NEW
         price: parseFloat(priceEl.value || 0),
         qty: parseInt(qtyEl.value || 0),
         category: catEl.value,
         expiry_date: expEl.value
     };
 
-    // Helper to revert button text
     const resetButton = (originalText, originalColor) => {
         setTimeout(() => {
             saveBtn.disabled = false;
@@ -103,12 +106,11 @@ async function addProduct() {
     };
 
     const originalText = "Save Item";
-    const originalColor = ""; // Default from CSS
+    const originalColor = "";
 
-    // Validation Feedback
     if (!payload.barcode || !payload.name) {
         saveBtn.innerText = "⚠ Missing Info";
-        saveBtn.style.backgroundColor = "#ef4444"; // Red
+        saveBtn.style.backgroundColor = "#ef4444";
         resetButton(originalText, originalColor);
         return;
     }
@@ -126,26 +128,24 @@ async function addProduct() {
         const result = await res.json();
 
         if (res.ok) {
-            // SUCCESS
             saveBtn.innerText = "✔ Saved!";
-            saveBtn.style.backgroundColor = "#059669"; // Green
+            saveBtn.style.backgroundColor = "#059669";
 
             setTimeout(() => {
                 document.getElementById('add-product-form').style.display = 'none';
                 barcodeEl.value = '';
                 nameEl.value = '';
+                companyEl.value = ''; // Reset
                 priceEl.value = '';
                 qtyEl.value = '';
 
-                // Reset Button
                 saveBtn.disabled = false;
                 saveBtn.innerText = originalText;
                 saveBtn.style.backgroundColor = originalColor;
 
-                loadInventory(); // Auto refresh
+                loadInventory();
             }, 800);
         } else {
-            // Server Error Feedback
             console.error(result.error);
             saveBtn.innerText = "⚠ Error Saving";
             saveBtn.style.backgroundColor = "#ef4444";
@@ -170,7 +170,13 @@ function filterInventory() {
     const filtered = inventoryData.filter(item => {
         const itemName = (item.name || '').toLowerCase();
         const barcode = (item.barcode || '').toString().toLowerCase();
-        const matchesSearch = itemName.includes(searchText) || barcode.includes(searchText);
+        const company = (item.company_name || '').toLowerCase(); // NEW
+
+        // Match Name, Barcode OR Company
+        const matchesSearch = itemName.includes(searchText) ||
+            barcode.includes(searchText) ||
+            company.includes(searchText);
+
         const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
 
         return matchesSearch && matchesCategory;

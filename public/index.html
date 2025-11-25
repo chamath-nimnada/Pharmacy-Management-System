@@ -73,22 +73,42 @@
                 </div>
             </div>
 
-            <div class="table-container">
-                <div
-                    style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
-                    <span class="material-icons-round" style="color:var(--warning)">warning</span>
-                    <h3 style="margin:0; color:var(--text-main);">Low Stock & Expiry Alerts</h3>
+            <div class="stats-grid" style="margin-top: 0; gap: 24px;">
+                <div class="table-container" style="margin-top:0;">
+                    <div
+                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                        <span class="material-icons-round" style="color:var(--warning)">inventory_2</span>
+                        <h3 style="margin:0; color:var(--text-main); font-size:16px;">Low Stock Alerts</h3>
+                    </div>
+                    <table class="styled-table" id="stock-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                <table class="styled-table" id="alert-table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Issue</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+
+                <div class="table-container" style="margin-top:0;">
+                    <div
+                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                        <span class="material-icons-round" style="color:var(--danger)">event_busy</span>
+                        <h3 style="margin:0; color:var(--text-main); font-size:16px;">Expiring Soon</h3>
+                    </div>
+                    <table class="styled-table" id="expiry-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Expires In</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -98,7 +118,8 @@
                 <div class="billing-left">
                     <div class="search-bar">
                         <span class="material-icons-round">qr_code_scanner</span>
-                        <input type="text" id="barcode-input" placeholder="Scan Barcode or Search Product..." autofocus>
+                        <input type="text" id="barcode-input" placeholder="Scan Barcode, Product ID, or Name..."
+                            autofocus>
                     </div>
                     <div class="cart-area">
                         <table class="styled-table">
@@ -179,6 +200,7 @@
                 <div class="form-grid">
                     <input type="text" id="inv-barcode" placeholder="Scan Barcode">
                     <input type="text" id="inv-name" placeholder="Product Name">
+                    <input type="text" id="inv-company" placeholder="Company Name">
                     <input type="number" id="inv-price" placeholder="Price (LKR)">
                     <input type="number" id="inv-qty" placeholder="Quantity">
                     <select id="inv-category">
@@ -195,7 +217,7 @@
                 <div class="search-bar"
                     style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="inv-search" placeholder="Search by Name or Barcode..."
+                    <input type="text" id="inv-search" placeholder="Search by Name, Barcode, or Company..."
                         onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
 
@@ -211,8 +233,10 @@
                 <table class="styled-table">
                     <thead>
                         <tr>
+                            <th>ID</th>
                             <th>Barcode</th>
                             <th>Name</th>
+                            <th>Company</th>
                             <th>Category</th>
                             <th>Price</th>
                             <th>Qty</th>
@@ -285,12 +309,23 @@
 
         <section id="history" class="view hidden">
             <h1>Sales History</h1>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+                <div class="search-bar"
+                    style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                    <span class="material-icons-round" style="color: var(--text-muted);">search</span>
+                    <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()"
+                        style="border: none; box-shadow: none; background: transparent;">
+                </div>
+                <input type="date" id="history-date" onchange="filterHistory()" style="width: auto; background: white;">
+                <button class="btn-primary" onclick="loadHistory()" style="padding: 10px 15px;">Refresh</button>
+            </div>
             <div class="table-container">
                 <table class="styled-table">
                     <thead>
                         <tr>
                             <th>Date</th>
                             <th>Sale ID</th>
+                            <th>Purchased Items</th>
                             <th>Method</th>
                             <th>Amount</th>
                         </tr>
@@ -305,11 +340,18 @@
             <div class="card" style="max-width: 400px;">
                 <h3>Data Management</h3>
                 <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
-                <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">Export
-                    Database</button>
-                <button class="btn-primary"
-                    style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;">Import
-                    Database</button>
+
+                <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">
+                    Export Database
+                </button>
+
+                <button class="btn-primary" id="btn-import"
+                    style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;"
+                    onclick="triggerImport()">
+                    Import Database
+                </button>
+
+                <input type="file" id="db-upload" accept=".db" style="display: none;">
             </div>
         </section>
 
@@ -332,13 +374,12 @@
             <thead>
                 <tr>
                     <th style="width: 35%;">Item</th>
-                    <th style="width: 25%;">Price</th>
+                    <th style="width: 20%;">Price</th>
                     <th style="width: 10%;">Qty</th>
-                    <th style="width: 30%; text-align:right;">Total</th>
+                    <th style="width: 35%; text-align:right;">Total</th>
                 </tr>
             </thead>
-            <tbody id="rec-items">
-            </tbody>
+            <tbody id="rec-items"></tbody>
         </table>
 
         <div id="rec-discounts"
@@ -361,7 +402,7 @@
     <script src="js/purchases.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/history.js"></script>
-
+    <script src="js/settings.js"></script>
     <script>
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     </script>

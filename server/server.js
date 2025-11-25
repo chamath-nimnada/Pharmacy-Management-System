@@ -2,14 +2,58 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database');
+const multer = require('multer'); // For file uploads
+const fs = require('fs');
+const db = require('./database'); // Imports our new Proxy Object
+
 const app = express();
+const upload = multer({ dest: 'uploads/' }); // Temp upload folder
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// --- 1. INVENTORY ROUTES ---
+// --- 1. DATABASE MANAGEMENT ROUTES (NEW) ---
+
+// Export Database
+app.get('/api/export-db', (req, res) => {
+    const file = db.getDbPath();
+    res.download(file, `pharmacy_backup_${new Date().toISOString().split('T')[0]}.db`);
+});
+
+// Import Database
+app.post('/api/import-db', upload.single('database'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const tempPath = req.file.path;
+    const targetPath = db.getDbPath();
+
+    // 1. Close existing connection to release file lock
+    db.close((err) => {
+        if (err) {
+            console.error("Error closing DB:", err);
+            return res.status(500).json({ error: "Failed to close database for import." });
+        }
+
+        // 2. Overwrite the database file
+        fs.copyFile(tempPath, targetPath, (err) => {
+            // Always try to reconnect, even if copy failed, to keep app alive
+            db.reconnect();
+
+            // Delete temp file
+            fs.unlink(tempPath, () => { });
+
+            if (err) {
+                console.error("Error overwriting DB:", err);
+                return res.status(500).json({ error: "Failed to replace database file." });
+            }
+
+            res.json({ message: "Database Imported Successfully!" });
+        });
+    });
+});
+
+// --- 2. INVENTORY ROUTES ---
 app.get('/api/products', (req, res) => {
     db.all("SELECT * FROM products ORDER BY expiry_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
@@ -18,29 +62,50 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-    const { barcode, name, price, category, qty, expiry_date } = req.body;
+    const { barcode, name, price, category, qty, expiry_date, company_name } = req.body;
 
-    // Check if a batch with SAME barcode AND SAME expiry exists
-    db.get("SELECT id, qty FROM products WHERE barcode = ? AND expiry_date = ?", [barcode, expiry_date], (err, row) => {
-        if (row) {
-            // Update existing batch quantity
-            // FIXED TYPO: Changed SETZF to SET
-            db.run("UPDATE products SET qty = qty + ? WHERE id = ?", [qty, row.id], function (err) {
-                if (err) return res.status(400).json({ error: err.message });
-                res.json({ message: "Stock Updated", id: row.id });
+    // 1. Get or Generate Product Code
+    db.get("SELECT product_code FROM products WHERE barcode = ?", [barcode], (err, existingCodeRow) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        let finalProductCode;
+
+        const proceedToSave = (pCode) => {
+            db.get("SELECT id, qty FROM products WHERE barcode = ? AND expiry_date = ?", [barcode, expiry_date], (err, row) => {
+                if (row) {
+                    // Update
+                    db.run("UPDATE products SET qty = qty + ?, company_name = ? WHERE id = ?",
+                        [qty, company_name, row.id],
+                        function (err) {
+                            if (err) return res.status(400).json({ error: err.message });
+                            res.json({ message: "Stock Updated", id: row.id, product_code: pCode });
+                        }
+                    );
+                } else {
+                    // Insert
+                    const sql = `INSERT INTO products (barcode, name, price, category, qty, expiry_date, company_name, product_code) 
+                                 VALUES (?,?,?,?,?,?,?,?)`;
+                    db.run(sql, [barcode, name, price, category, qty, expiry_date, company_name, pCode], function (err) {
+                        if (err) return res.status(400).json({ error: err.message });
+                        res.json({ message: "New Batch Added", id: this.lastID, product_code: pCode });
+                    });
+                }
             });
+        };
+
+        if (existingCodeRow && existingCodeRow.product_code) {
+            finalProductCode = existingCodeRow.product_code;
+            proceedToSave(finalProductCode);
         } else {
-            // Create New Batch
-            const sql = 'INSERT INTO products (barcode, name, price, category, qty, expiry_date) VALUES (?,?,?,?,?,?)';
-            db.run(sql, [barcode, name, price, category, qty, expiry_date], function (err) {
-                if (err) return res.status(400).json({ error: err.message });
-                res.json({ message: "New Batch Added", id: this.lastID });
+            db.get("SELECT MAX(product_code) as maxVal FROM products", (err, maxRow) => {
+                finalProductCode = (maxRow && maxRow.maxVal) ? maxRow.maxVal + 1 : 1001;
+                proceedToSave(finalProductCode);
             });
         }
     });
 });
 
-// --- 2. SALES ROUTES (FIFO LOGIC) ---
+// --- 3. SALES ROUTES ---
 app.post('/api/sale', (req, res) => {
     const { items, total, method } = req.body;
 
@@ -57,8 +122,16 @@ app.post('/api/sale', (req, res) => {
                             db.run('ROLLBACK');
                             return res.status(500).json({ error: err.message });
                         }
+
+                        const saleId = this.lastID;
+                        const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)");
+                        items.forEach(item => {
+                            itemStmt.run(saleId, item.name, item.buyQty, item.price);
+                        });
+                        itemStmt.finalize();
+
                         db.run('COMMIT');
-                        res.json({ message: "Sale Complete", saleId: this.lastID });
+                        res.json({ message: "Sale Complete", saleId: saleId });
                     });
                 }
                 return;
@@ -67,7 +140,6 @@ app.post('/api/sale', (req, res) => {
             const item = items[index];
             let qtyNeeded = item.buyQty;
 
-            // FIFO: Find batches ordered by oldest expiry first
             db.all("SELECT id, qty FROM products WHERE barcode = ? AND qty > 0 ORDER BY expiry_date ASC", [item.barcode], (err, batches) => {
                 if (err || !batches || batches.length === 0) {
                     errorOccurred = true;
@@ -112,13 +184,20 @@ app.post('/api/sale', (req, res) => {
 });
 
 app.get('/api/sales', (req, res) => {
-    db.all("SELECT * FROM sales ORDER BY date DESC", [], (err, rows) => {
+    const sql = `
+        SELECT s.*, GROUP_CONCAT(si.product_name || ' (' || si.qty || ')', ', ') as items_list
+        FROM sales s
+        LEFT JOIN sale_items si ON s.id = si.sale_id
+        GROUP BY s.id
+        ORDER BY s.date DESC
+    `;
+    db.all(sql, [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
     });
 });
 
-// --- 3. PURCHASE ROUTES ---
+// --- 4. PURCHASE ROUTES ---
 app.get('/api/purchases', (req, res) => {
     db.all("SELECT * FROM invoices ORDER BY due_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
@@ -143,11 +222,10 @@ app.put('/api/purchases/:id/pay', (req, res) => {
     });
 });
 
-// --- 4. DASHBOARD STATS ---
+// --- 5. DASHBOARD STATS ---
 app.get('/api/dashboard-stats', (req, res) => {
     const stats = {};
 
-    // FIXED TYPO: Added space between SELECT and SUM
     db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')", (err, row) => {
         stats.todaySales = row ? row.total : 0;
 

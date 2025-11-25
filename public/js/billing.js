@@ -23,7 +23,12 @@ const barcodeInput = document.getElementById('barcode-input');
 barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const val = barcodeInput.value.trim();
-        const product = products.find(p => p.barcode === val || p.name.toLowerCase() === val.toLowerCase());
+        // Match Barcode, Name, OR Product Code (ID)
+        const product = products.find(p =>
+            p.barcode === val ||
+            p.name.toLowerCase() === val.toLowerCase() ||
+            (p.product_code && p.product_code.toString() === val)
+        );
 
         if (product) {
             addToCart(product);
@@ -60,7 +65,6 @@ function removeFromCart(index) {
 
 // Helper to get applicable discount
 function getDiscountForItem(category) {
-    // Safety check: ensure elements exist before accessing .value
     const medInput = document.getElementById('disc-medicine');
     const drugInput = document.getElementById('disc-drug');
     const otherInput = document.getElementById('disc-other');
@@ -94,14 +98,14 @@ function renderCart() {
 
         totalDiscount += (originalLineTotal - finalLineTotal);
 
-        // Display Logic (Strike-through if discounted)
+        // Display Logic
         let priceDisplay = item.price.toFixed(2);
         let totalDisplay = finalLineTotal.toFixed(2);
 
         if (discountPct > 0) {
-            // Added text-decoration-thickness: 1px
-            priceDisplay = `<span style="text-decoration:line-through; text-decoration-thickness: 1px; color:#999; font-size:11px;">${item.price.toFixed(2)}</span> <br> ${discountedPrice.toFixed(2)}`;
-            totalDisplay = `<span style="text-decoration:line-through; text-decoration-thickness: 1px; color:#999; font-size:11px;">${originalLineTotal.toFixed(2)}</span> <br> ${finalLineTotal.toFixed(2)}`;
+            // Use CSS class for thin line (Visual UI)
+            priceDisplay = `<span class="strike-thin" style="font-size:11px;">${item.price.toFixed(2)}</span> <br> ${discountedPrice.toFixed(2)}`;
+            totalDisplay = `<span class="strike-thin" style="font-size:11px;">${originalLineTotal.toFixed(2)}</span> <br> ${finalLineTotal.toFixed(2)}`;
         }
 
         tbody.innerHTML += `
@@ -191,9 +195,9 @@ async function processSale() {
                 let totalDisplay = lineTotal.toFixed(2);
 
                 if (discountPct > 0) {
-                    // Added text-decoration-thickness: 1px
-                    priceDisplay = `<span style="text-decoration:line-through; text-decoration-thickness: 0.5px; font-size:10px; text-decoration-style: dotted;">${originalPrice.toFixed(2)}</span><br>${discountedPrice.toFixed(2)}`;
-                    totalDisplay = `<span style="text-decoration:line-through; text-decoration-thickness: 0.5px; font-size:10px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
+                    // Use CSS class for thin line (Print Receipt)
+                    priceDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalPrice.toFixed(2)}</span><br>${discountedPrice.toFixed(2)}`;
+                    totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
                 }
 
                 recItemsBody.innerHTML += `
@@ -208,8 +212,8 @@ async function processSale() {
 
             // Total Display Logic
             if (total < subTotal) {
-                // Added text-decoration-thickness: 1px
-                document.getElementById('rec-total').innerHTML = `<span style="text-decoration:line-through; text-decoration-thickness: 0.5px; font-size:12px; text-decoration-style: dotted;">Rs. ${subTotal.toFixed(2)}</span><br>LKR ${total.toFixed(2)}`;
+                // Use CSS class for thin line (Print Receipt Total)
+                document.getElementById('rec-total').innerHTML = `<span class="strike-thin" style="font-size:11px; text-decoration:line-through; text-decoration-thickness: 1px; text-decoration-style: dotted;">Rs. ${subTotal.toFixed(2)}</span><br>LKR ${total.toFixed(2)}`;
             } else {
                 document.getElementById('rec-total').innerText = `LKR ${total.toFixed(2)}`;
             }

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PharmaPOS | Modern System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="logo">
+            <span class="material-icons-round" style="font-size: 32px; color: var(--primary);">health_and_safety</span>
+            <h2>Pharma<span class="highlight">POS</span></h2>
+        </div>
+        <nav>
+            <a href="#" class="nav-link active" data-target="dashboard">
+                <span class="material-icons-round">dashboard</span> Dashboard
+            </a>
+            <a href="#" class="nav-link" data-target="billing">
+                <span class="material-icons-round">point_of_sale</span> New Sale
+            </a>
+            <a href="#" class="nav-link" data-target="inventory">
+                <span class="material-icons-round">inventory_2</span> Inventory
+            </a>
+            <a href="#" class="nav-link" data-target="purchases">
+                <span class="material-icons-round">receipt_long</span> Purchases
+            </a>
+            <a href="#" class="nav-link" data-target="history">
+                <span class="material-icons-round">history</span> History
+            </a>
+            <a href="#" class="nav-link" data-target="settings">
+                <span class="material-icons-round">settings</span> Settings
+            </a>
+        </nav>
+    </div>
+
+    <main class="main-content">
+
+        <section id="dashboard" class="view active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h1>Dashboard</h1>
+                <p id="current-date" style="color:var(--text-muted); font-weight:500;">Loading date...</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="card">
+                    <h3>Today's Revenue</h3>
+                    <h2 id="today-sales">LKR 0.00</h2>
+                </div>
+                <div class="card">
+                    <h3>Monthly Revenue</h3>
+                    <h2 id="monthly-sales">LKR 0.00</h2>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--danger);">
+                    <h3>Pending Payments</h3>
+                    <h2 id="due-current" style="color: var(--danger);">LKR 0.00</h2>
+                </div>
+                <div class="card">
+                    <h3>Total Products</h3>
+                    <h2 id="total-products">0</h2>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 style="margin-bottom:15px;">Sales Trend</h3>
+                <div style="height: 300px;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div
+                    style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                    <span class="material-icons-round" style="color:var(--warning)">warning</span>
+                    <h3 style="margin:0; color:var(--text-main);">Low Stock & Expiry Alerts</h3>
+                </div>
+                <table class="styled-table" id="alert-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Issue</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="billing" class="view hidden">
+            <h1 style="margin-bottom: 10px;">New Sale</h1>
+            <div class="billing-layout">
+                <div class="billing-left">
+                    <div class="search-bar">
+                        <span class="material-icons-round">qr_code_scanner</span>
+                        <input type="text" id="barcode-input" placeholder="Scan Barcode or Search Product..." autofocus>
+                    </div>
+                    <div class="cart-area">
+                        <table class="styled-table">
+                            <thead style="position: sticky; top: 0; background: #fff; z-index: 2;">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="checkout-panel">
+                    <div>
+                        <h3 style="margin-bottom: 20px; color: var(--text-muted);">Payment Details</h3>
+                        <label style="display:block; margin-bottom:8px; font-weight:500;">Payment Method</label>
+                        <select id="payment-method" style="margin-bottom: 20px;">
+                            <option value="Cash">💵 Cash</option>
+                            <option value="Card">💳 Card</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="summary-row"><span>Subtotal</span><span id="sub-total">0.00</span></div>
+                        <div class="summary-row"><span>Tax (0%)</span><span>0.00</span></div>
+                        <div class="summary-row total"><span>Total</span><span id="grand-total">LKR 0.00</span></div>
+
+                        <button onclick="processSale()" class="btn-checkout">
+                            Complete Sale <span class="material-icons-round">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="inventory" class="view hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h1>Inventory</h1>
+                <button class="btn-primary"
+                    onclick="document.getElementById('add-product-form').style.display='block'">+ Add Product</button>
+            </div>
+
+            <div id="add-product-form" class="card form-card" style="display:none; border: 1px solid var(--primary);">
+                <div style="display:flex; justify-content:space-between;">
+                    <h3>Add New Item</h3>
+                    <button onclick="document.getElementById('add-product-form').style.display='none'"
+                        style="background:none;">✕</button>
+                </div>
+                <div class="form-grid">
+                    <input type="text" id="inv-barcode" placeholder="Scan Barcode">
+                    <input type="text" id="inv-name" placeholder="Product Name">
+                    <input type="number" id="inv-price" placeholder="Price">
+                    <input type="number" id="inv-qty" placeholder="Quantity">
+                    <select id="inv-category">
+                        <option value="Medicine">Medicine</option>
+                        <option value="Drug">Drug</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="date" id="inv-expiry">
+                    <button onclick="addProduct()" class="btn-success">Save Item</button>
+                </div>
+            </div>
+
+            <div class="search-bar" style="margin-bottom: 20px;">
+                <span class="material-icons-round">search</span>
+                <input type="text" id="inv-search" placeholder="Search inventory..." onkeyup="filterInventory()">
+            </div>
+
+            <div class="table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Barcode</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th>Expiry</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-list"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="purchases" class="view hidden">
+            <h1>Purchases</h1>
+            <div class="card form-card">
+                <h3>Record New Invoice</h3>
+                <div class="form-grid">
+                    <input type="text" id="pur-supplier" placeholder="Supplier Name">
+                    <input type="text" id="pur-company" placeholder="Company">
+                    <input type="text" id="pur-invoice" placeholder="Invoice #">
+                    <input type="number" id="pur-amount" placeholder="Amount">
+                    <input type="date" id="pur-date">
+                    <select id="pur-status">
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                    </select>
+                    <button onclick="addInvoice()" class="btn-primary">Add Record</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Due Date</th>
+                            <th>Invoice #</th>
+                            <th>Supplier</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchase-list"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="history" class="view hidden">
+            <h1>Sales History</h1>
+            <div class="table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Sale ID</th>
+                            <th>Method</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-list"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="settings" class="view hidden">
+            <h1>Settings</h1>
+            <div class="card" style="max-width: 400px;">
+                <h3>Data Management</h3>
+                <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
+                <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">Export
+                    Database</button>
+                <button class="btn-primary"
+                    style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;">Import
+                    Database</button>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="receipt-print-area" class="print-only">
+        <div style="text-align:center; font-family: monospace;">
+            <h2 style="margin:0;">CITY PHARMACY</h2>
+            <p>123 Main St, Colombo</p>
+            <p>--------------------------------</p>
+            <p style="text-align:left;">Bill: <span id="rec-bill-no"></span></p>
+            <p style="text-align:left;">Date: <span id="rec-date"></span></p>
+            <p>--------------------------------</p>
+            <table style="width:100%; text-align:left;">
+                <tbody id="rec-items"></tbody>
+            </table>
+            <p>--------------------------------</p>
+            <h3 style="text-align:right;">TOTAL: <span id="rec-total"></span></h3>
+            <p style="text-align:center; margin-top:20px;">Thank You!</p>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/billing.js"></script>
+    <script src="js/purchases.js"></script>
+    <script>
+        // Set Date
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    </script>
+</body>
+
+</html>

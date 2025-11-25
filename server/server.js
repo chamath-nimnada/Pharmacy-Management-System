@@ -91,3 +91,12 @@ app.put('/api/purchases/:id/pay', (req, res) => {
         res.json({ message: "Marked as Paid" });
     });
 });
+
+app.get('/api/sales', (req, res) => {
+    // Get sales ordered by newest first
+    const sql = "SELECT * FROM sales ORDER BY date DESC";
+    db.all(sql, [], (err, rows) => {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ data: rows });
+    });
+});

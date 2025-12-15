@@ -105,7 +105,21 @@ app.post('/api/products', (req, res) => {
     });
 });
 
-// NEW: Delete Product (All batches with this ID)
+// UPDATE Product Details (Fixed Typo)
+app.put('/api/products/:code', (req, res) => {
+    const { name, company_name, price, category } = req.body;
+    const code = req.params.code;
+    db.run(
+        "UPDATE products SET name = ?, company_name = ?, price = ?, category = ? WHERE product_code = ?",
+        [name, company_name, price, category, code],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: "Product updated", changes: this.changes });
+        }
+    );
+});
+
+// Delete Product (All batches with this ID)
 app.delete('/api/products/:code', (req, res) => {
     const code = req.params.code;
     db.run("DELETE FROM products WHERE product_code = ?", [code], function (err) {

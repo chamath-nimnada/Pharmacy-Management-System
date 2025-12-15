@@ -32,18 +32,20 @@ function renderInventory(products) {
         return;
     }
 
-    // Group items by barcode to show Total Quantity
+    // Group items by product_code (better stability than barcode if barcode is missing)
     const grouped = {};
     products.forEach(item => {
-        if (!grouped[item.barcode]) {
-            grouped[item.barcode] = {
+        // Use product_code as key if available, else barcode
+        const key = item.product_code || item.barcode;
+        if (!grouped[key]) {
+            grouped[key] = {
                 ...item,
                 totalQty: 0,
                 batches: []
             };
         }
-        grouped[item.barcode].totalQty += item.qty;
-        grouped[item.barcode].batches.push(item);
+        grouped[key].totalQty += item.qty;
+        grouped[key].batches.push(item);
     });
 
     Object.values(grouped).forEach(group => {
@@ -56,10 +58,20 @@ function renderInventory(products) {
         let rowStyle = '';
         if (group.totalQty < 5) rowStyle = 'background: #fff0f0; color: #d63031;';
 
+        // Format Date for Table (dd/mm/yyyy)
+        const dateObj = new Date(nearestExpiry);
+        const formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : nearestExpiry;
+
+        // Batches Button (Only if multiple batches)
+        let batchesBtn = '';
+        if (batchCount > 1) {
+             batchesBtn = `<button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#64748b; color:white; margin-right:5px;" onclick="viewBatches('${group.product_code}')">Batches</button>`;
+        }
+
         tbody.innerHTML += `
             <tr style="${rowStyle}">
                 <td style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
-                <td style="font-family:monospace; font-weight:bold;">${group.barcode}</td>
+                <td style="font-family:monospace; font-weight:bold;">${group.barcode || '<span style="color:#ccc">N/A</span>'}</td>
                 <td>
                     ${group.name} 
                     ${batchCount > 1 ? `<span style="font-size:10px; color:blue; font-weight:bold;">(${batchCount} Batches)</span>` : ''}
@@ -68,9 +80,12 @@ function renderInventory(products) {
                 <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${group.category}</span></td>
                 <td>LKR ${parseFloat(group.price).toFixed(2)}</td>
                 <td style="font-weight:bold;">${group.totalQty}</td>
-                <td>${nearestExpiry}</td>
+                <td>${formattedDate}</td>
                 <td>
-                    <button class="btn-danger" onclick="deleteProduct('${group.product_code}', this)">
+                    ${batchesBtn}
+                    <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#f59e0b; color:black; margin-right:5px;" 
+                        onclick="editProduct('${group.product_code}')">Edit</button>
+                    <button class="btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${group.product_code}', this)">
                         Delete
                     </button>
                 </td>
@@ -90,10 +105,16 @@ async function addProduct() {
     const expEl = document.getElementById('inv-expiry');
     const saveBtn = document.querySelector('#add-product-form button.btn-success');
 
-    if (!barcodeEl || !nameEl) return;
+    if (!nameEl) return;
+
+    // Handle Optional Barcode: If empty, generate internal unique ID
+    let finalBarcode = barcodeEl.value.trim();
+    if (!finalBarcode) {
+        finalBarcode = "SYS-" + Date.now(); 
+    }
 
     const payload = {
-        barcode: barcodeEl.value.trim(),
+        barcode: finalBarcode,
         name: nameEl.value.trim(),
         company_name: companyEl.value.trim(),
         price: parseFloat(priceEl.value || 0),
@@ -113,8 +134,9 @@ async function addProduct() {
     const originalText = "Save Item";
     const originalColor = "";
 
-    if (!payload.barcode || !payload.name) {
-        saveBtn.innerText = "⚠ Missing Info";
+    // Validate Name (Barcode is optional now)
+    if (!payload.name) {
+        saveBtn.innerText = "⚠ Missing Name";
         saveBtn.style.backgroundColor = "#ef4444";
         resetButton(originalText, originalColor);
         return;
@@ -137,12 +159,21 @@ async function addProduct() {
             saveBtn.style.backgroundColor = "#059669";
 
             setTimeout(() => {
-                document.getElementById('add-product-form').style.display = 'none';
+                // DO NOT HIDE FORM (Update 1)
+                // document.getElementById('add-product-form').style.display = 'none';
+                
+                // Clear fields for next entry (Fast Adding)
                 barcodeEl.value = '';
                 nameEl.value = '';
-                companyEl.value = ''; // Reset
+                // Keep company & category? User might add multiple from same company. 
+                // But prompt implies fresh start usually. Let's clear to be safe.
+                // companyEl.value = ''; 
                 priceEl.value = '';
                 qtyEl.value = '';
+                // catEl.value = 'Medicine'; // Keep category selection? Maybe better to keep last used.
+                
+                // Focus back to first input (Update 5)
+                barcodeEl.focus();
 
                 saveBtn.disabled = false;
                 saveBtn.innerText = originalText;
@@ -161,6 +192,20 @@ async function addProduct() {
         saveBtn.innerText = "⚠ Network Error";
         saveBtn.style.backgroundColor = "#ef4444";
         resetButton(originalText, originalColor);
+    }
+}
+
+// Check Existing Product for Auto-Fill (Update 6)
+function checkExistingProduct(barcode) {
+    if (!barcode) return;
+    
+    // Check locally in loaded inventoryData for speed
+    const existing = inventoryData.find(p => p.barcode === barcode);
+    if (existing) {
+        document.getElementById('inv-name').value = existing.name;
+        document.getElementById('inv-company').value = existing.company_name;
+        document.getElementById('inv-price').value = existing.price;
+        document.getElementById('inv-category').value = existing.category;
     }
 }
 
@@ -197,7 +242,90 @@ async function deleteProduct(code, btn) {
     }
 }
 
-// 5. FILTER LOGIC (Category + Search)
+// 5. Edit Product (Open Modal)
+function editProduct(code) {
+    // Find product data
+    const product = inventoryData.find(p => p.product_code == code);
+    if (!product) return;
+
+    document.getElementById('edit-code').value = code;
+    document.getElementById('edit-barcode').value = product.barcode;
+    document.getElementById('edit-name').value = product.name;
+    document.getElementById('edit-company').value = product.company_name;
+    document.getElementById('edit-price').value = product.price;
+    document.getElementById('edit-category').value = product.category;
+
+    document.getElementById('edit-product-form').style.display = 'block';
+    document.getElementById('add-product-form').style.display = 'none'; // Close add form if open
+}
+
+// 6. View Batches (New Feature)
+function viewBatches(code) {
+    // Filter all items that match this product code
+    const batches = inventoryData.filter(p => (p.product_code && p.product_code == code) || (!p.product_code && p.barcode === code));
+    
+    if (batches.length === 0) return;
+
+    const tbody = document.getElementById('batch-list-body');
+    tbody.innerHTML = '';
+
+    batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
+
+    batches.forEach(b => {
+        const dateObj = new Date(b.expiry_date);
+        const formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : b.expiry_date;
+
+        tbody.innerHTML += `
+            <tr>
+                <td>${formattedDate}</td>
+                <td style="font-weight:bold;">${b.qty}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('batch-modal-title').innerText = `${batches[0].name} (Batches)`;
+    document.getElementById('batches-modal').style.display = 'block';
+}
+
+// 7. Save Edit (Fixed Error Handling)
+async function saveEdit() {
+    const code = document.getElementById('edit-code').value;
+    const name = document.getElementById('edit-name').value;
+    const company = document.getElementById('edit-company').value;
+    const price = document.getElementById('edit-price').value;
+    const category = document.getElementById('edit-category').value;
+    const btn = document.querySelector('#edit-product-form button');
+
+    if(!name) return alert("Name is required");
+
+    btn.innerText = "Updating...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/products/${code}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, company_name: company, price, category })
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+            document.getElementById('edit-product-form').style.display = 'none';
+            loadInventory();
+        } else {
+            alert("Failed to update: " + (result.error || "Unknown Error"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error updating: " + e.message);
+    } finally {
+        btn.innerText = "Update Item";
+        btn.disabled = false;
+    }
+}
+
+// 8. FILTER LOGIC (Category + Search)
 function filterInventory() {
     const searchEl = document.getElementById('inv-search');
     const catEl = document.getElementById('inv-filter-cat');

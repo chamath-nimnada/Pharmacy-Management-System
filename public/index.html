@@ -184,7 +184,7 @@
         <section id="inventory" class="view hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1>Inventory</h1>
-                <button class="btn-primary" onclick="document.getElementById('add-product-form').style.display='block'">
+                <button class="btn-primary" onclick="document.getElementById('add-product-form').style.display='block'; document.getElementById('inv-barcode').focus();">
                     <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add
                     Product
                 </button>
@@ -198,20 +198,46 @@
                         style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
-                    <input type="text" id="inv-barcode" placeholder="Scan Barcode">
-                    <input type="text" id="inv-name" placeholder="Product Name">
-                    <input type="text" id="inv-company" placeholder="Company Name">
-                    <input type="number" id="inv-price" placeholder="Price (LKR)">
-                    <input type="number" id="inv-qty" placeholder="Quantity">
-                    <select id="inv-category">
+                    <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)" onkeydown="nav(event, 'inv-name')" onblur="checkExistingProduct(this.value)">
+                    <input type="text" id="inv-name" placeholder="Product Name" onkeydown="nav(event, 'inv-company')">
+                    <input type="text" id="inv-company" placeholder="Company Name" onkeydown="nav(event, 'inv-price')">
+                    <input type="number" id="inv-price" placeholder="Price (LKR)" onkeydown="nav(event, 'inv-qty')">
+                    <input type="number" id="inv-qty" placeholder="Quantity" onkeydown="nav(event, 'inv-category')">
+                    <select id="inv-category" onkeydown="nav(event, 'inv-expiry')">
                         <option value="Medicine">Medicine</option>
                         <option value="Drug">Drug</option>
                         <option value="Other">Other</option>
                     </select>
-                    <input type="date" id="inv-expiry">
+                    <input type="date" id="inv-expiry" onkeydown="if(event.key==='Enter') addProduct()">
                     <button onclick="addProduct()" class="btn-success">Save Item</button>
                 </div>
             </div>
+
+             <div id="edit-product-form" class="card form-card"
+             style="display:none; border: 1px solid var(--warning); margin-bottom: 20px;">
+             <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
+                 <h3>Edit Item</h3>
+                 <button onclick="document.getElementById('edit-product-form').style.display='none'"
+                     style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+             </div>
+             <div class="form-grid">
+                 <input type="hidden" id="edit-code">
+                 <input type="text" id="edit-barcode" placeholder="Barcode" disabled style="background: #e2e8f0;">
+                 <input type="text" id="edit-name" placeholder="Product Name">
+                 <input type="text" id="edit-company" placeholder="Company Name">
+                 <input type="number" id="edit-price" placeholder="Price (LKR)">
+                 <select id="edit-category">
+                     <option value="Medicine">Medicine</option>
+                     <option value="Drug">Drug</option>
+                     <option value="Other">Other</option>
+                 </select>
+                 <div style="display: flex; align-items: center;">
+                    <span style="font-size: 12px; color: #666;">(Qty updates via New Batch only)</span>
+                 </div>
+                 <div></div>
+                 <button onclick="saveEdit()" class="btn-primary" style="background-color: var(--warning); color: #000;">Update Item</button>
+             </div>
+         </div>
 
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
                 <div class="search-bar"
@@ -358,6 +384,22 @@
 
     </main>
 
+    <div id="batches-modal" class="card form-card" style="display:none; border: 1px solid var(--secondary); margin-bottom: 20px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; background: white; width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 15px; align-items: center;">
+            <h3 id="batch-modal-title">Batches</h3>
+            <button onclick="document.getElementById('batches-modal').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted); cursor:pointer;">✕</button>
+        </div>
+        <table class="styled-table" style="font-size: 13px;">
+            <thead>
+                <tr>
+                    <th>Expiry Date</th>
+                    <th>Qty</th>
+                </tr>
+            </thead>
+            <tbody id="batch-list-body"></tbody>
+        </table>
+    </div>
+
     <div id="receipt-print-area" class="print-only">
         <div class="rec-header">
             <h2><b>HIRU PHARMACY & GROCERY</b></h2>
@@ -407,6 +449,15 @@
 
     <script>
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        // Navigation Helper
+        function nav(e, nextId) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const nextEl = document.getElementById(nextId);
+                if (nextEl) nextEl.focus();
+            }
+        }
     </script>
 
 </body>

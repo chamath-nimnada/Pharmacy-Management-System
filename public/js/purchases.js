@@ -34,10 +34,14 @@ function renderPurchases(list) {
             : '<span style="color:#10b981; font-weight:bold;">✔ Paid</span>';
 
         const badgeColor = inv.status === 'Paid' ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#991b1b;';
+        
+        // Format Date dd/mm/yyyy
+        const dateObj = new Date(inv.due_date);
+        const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : inv.due_date;
 
         tbody.innerHTML += `
             <tr>
-                <td style="font-family:monospace;">${inv.due_date || '-'}</td>
+                <td style="font-family:monospace;">${dateStr}</td>
                 <td>${inv.invoice_number || '-'}</td>
                 <td>${inv.company_name || '-'}</td>
                 <td>${inv.supplier_name || '-'}</td>
@@ -113,11 +117,16 @@ async function addInvoice() {
             setTimeout(() => {
                 invEl.value = '';
                 amtEl.value = '';
+                // Optional: Clear other fields if desired
                 if (saveBtn) {
                     saveBtn.disabled = false;
                     saveBtn.innerText = originalText;
                     saveBtn.style.backgroundColor = originalColor;
                 }
+                
+                // Focus back to first field for rapid entry
+                if(supEl) supEl.focus();
+
                 loadPurchases();
             }, 800);
         } else {
@@ -191,7 +200,7 @@ function applyPurchasesFilter() {
 
     let filtered = allPurchases.filter(p => {
         const invNum = (p.invoice_number || '').toLowerCase();
-        const comp = (p.company_name || '').toLowerCase();
+        constZFomp = (p.company_name || '').toLowerCase();
         const matchesText = invNum.includes(txt) || comp.includes(txt);
         const matchesStatus = (currentFilterStatus === 'all') || (p.status === currentFilterStatus);
         return matchesText && matchesStatus;

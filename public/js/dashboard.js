@@ -2,7 +2,17 @@ let salesChartInstance = null; // Store chart to destroy/update later
 
 async function loadDashboard() {
     try {
-        const res = await fetch('/api/dashboard-stats');
+        // Get Preferences
+        const lowStockPref = localStorage.getItem('pref_lowStock') || 10;
+        const expiryPref = localStorage.getItem('pref_expiryDays') || 90;
+        const pendingPref = localStorage.getItem('pref_pendingDays') || 30;
+
+        // Update Pending Label
+        const pendingLabel = document.getElementById('pending-days-label');
+        if(pendingLabel) pendingLabel.innerText = `(Next ${pendingPref} Days)`;
+
+        // Fetch with params
+        const res = await fetch(`/api/dashboard-stats?minStock=${lowStockPref}&minExpiryDays=${expiryPref}&pendingDays=${pendingPref}`);
         const data = await res.json();
 
         // 1. Populate Cards
@@ -10,6 +20,11 @@ async function loadDashboard() {
         document.getElementById('monthly-sales').innerText = `LKR ${(data.monthlySales || 0).toFixed(2)}`;
         document.getElementById('due-current').innerText = `LKR ${(data.pendingPayments || 0).toFixed(2)}`;
         document.getElementById('total-products').innerText = `${data.totalProducts || 0}`;
+
+        // Update Month Label
+        const monthName = new Date().toLocaleString('default', { month: 'long' });
+        const monthLabel = document.getElementById('monthly-sales-label');
+        if(monthLabel) monthLabel.innerText = `${monthName} Revenue`;
 
         // 2. Populate Separate Alerts Tables
         const stockBody = document.querySelector('#stock-table tbody');
@@ -23,8 +38,8 @@ async function loadDashboard() {
             const today = new Date();
             const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
 
-            // CHECK 1: Low Stock (< 10)
-            if (item.qty < 10) {
+            // CHECK 1: Low Stock (Using preference)
+            if (item.qty < parseInt(lowStockPref)) {
                 stockBody.innerHTML += `
                     <tr>
                         <td>${item.name}</td>
@@ -40,8 +55,8 @@ async function loadDashboard() {
                 `;
             }
 
-            // CHECK 2: Expiring (< 90 days)
-            if (diffDays < 90) {
+            // CHECK 2: Expiring (Using preference)
+            if (diffDays < parseInt(expiryPref)) {
                 expiryBody.innerHTML += `
                     <tr>
                         <td>${item.name}</td>

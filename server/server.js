@@ -105,7 +105,7 @@ app.post('/api/products', (req, res) => {
     });
 });
 
-// UPDATE Product Details (Fixed Typo)
+// UPDATE Product Details (General Info)
 app.put('/api/products/:code', (req, res) => {
     const { name, company_name, price, category } = req.body;
     const code = req.params.code;
@@ -127,6 +127,32 @@ app.delete('/api/products/:code', (req, res) => {
         res.json({ message: "Product deleted", changes: this.changes });
     });
 });
+
+// --- NEW: BATCH MANAGEMENT ROUTES ---
+
+// Update specific batch
+app.put('/api/batch/:id', (req, res) => {
+    const { qty, expiry_date } = req.body;
+    const id = req.params.id;
+    db.run(
+        "UPDATE products SET qty = ?, expiry_date = ? WHERE id = ?",
+        [qty, expiry_date, id],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: "Batch updated", changes: this.changes });
+        }
+    );
+});
+
+// Delete specific batch
+app.delete('/api/batch/:id', (req, res) => {
+    const id = req.params.id;
+    db.run("DELETE FROM products WHERE id = ?", [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Batch deleted", changes: this.changes });
+    });
+});
+
 
 // --- 3. SALES ROUTES ---
 app.post('/api/sale', (req, res) => {
@@ -248,6 +274,11 @@ app.put('/api/purchases/:id/pay', (req, res) => {
 // --- 5. DASHBOARD STATS ---
 app.get('/api/dashboard-stats', (req, res) => {
     const stats = {};
+    
+    // Get parameters from query or use defaults
+    const lowStockThreshold = parseInt(req.query.minStock) || 10;
+    const expiryDays = parseInt(req.query.minExpiryDays) || 90;
+    const pendingDays = parseInt(req.query.pendingDays) || 30; // Default 30 days
 
     db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')", (err, row) => {
         stats.todaySales = row ? row.total : 0;
@@ -255,13 +286,18 @@ app.get('/api/dashboard-stats', (req, res) => {
         db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')", (err, row) => {
             stats.monthlySales = row ? row.total : 0;
 
-            db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending'", (err, row) => {
+            // UPDATED: Filter by Pending Scope
+            // Sums all pending invoices where due date is <= Today + X days (Covers Overdue + Near Future)
+            db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending' AND due_date <= date('now', '+' || ? || ' days')", [pendingDays], (err, row) => {
                 stats.pendingPayments = row ? row.total : 0;
 
                 db.get("SELECT COUNT(*) as count FROM products", (err, row) => {
                     stats.totalProducts = row ? row.count : 0;
 
-                    db.all("SELECT * FROM products WHERE qty < 10 OR expiry_date < date('now', '+3 months')", (err, alerts) => {
+                    // Dynamic Alert Query based on settings
+                    const alertSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`;
+                    
+                    db.all(alertSql, [lowStockThreshold, expiryDays], (err, alerts) => {
                         stats.alerts = alerts;
 
                         db.all("SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7", (err, chartData) => {

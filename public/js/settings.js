@@ -8,6 +8,34 @@ async function triggerImport() {
     document.getElementById('db-upload').click();
 }
 
+// 3. Save Alert Settings
+function saveAlertSettings() {
+    const lowStock = document.getElementById('set-low-stock').value;
+    const expiryDays = document.getElementById('set-expiry-days').value;
+    const pendingDays = document.getElementById('set-pending-days').value;
+
+    localStorage.setItem('pref_lowStock', lowStock);
+    localStorage.setItem('pref_expiryDays', expiryDays);
+    localStorage.setItem('pref_pendingDays', pendingDays);
+
+    alert("Preferences Saved! Dashboard will update.");
+}
+
+// Load Preferences on Start
+document.addEventListener("DOMContentLoaded", () => {
+    const lowStock = localStorage.getItem('pref_lowStock') || 10;
+    const expiryDays = localStorage.getItem('pref_expiryDays') || 90;
+    const pendingDays = localStorage.getItem('pref_pendingDays') || 30;
+
+    const stockInput = document.getElementById('set-low-stock');
+    const expiryInput = document.getElementById('set-expiry-days');
+    const pendingInput = document.getElementById('set-pending-days');
+
+    if(stockInput) stockInput.value = lowStock;
+    if(expiryInput) expiryInput.value = expiryDays;
+    if(pendingInput) pendingInput.value = pendingDays;
+});
+
 // Handle File Selection
 document.getElementById('db-upload').addEventListener('change', async function (e) {
     if (this.files.length === 0) return;

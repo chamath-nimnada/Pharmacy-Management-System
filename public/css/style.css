@@ -388,6 +388,19 @@ button {
     font-weight: 600;
 }
 
+.btn-danger {
+    background: var(--danger);
+    color: white;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+
 .btn-checkout {
     width: 100%;
     background: var(--primary);
@@ -470,7 +483,7 @@ button {
     }
 
     .rec-meta {
-        border-bottom: 0.5px dashed #000;
+        border-bottom: 1px dashed #000;
         margin-bottom: 5px;
         padding-bottom: 5px;
         font-size: 11px;
@@ -484,7 +497,7 @@ button {
 
     .rec-table th {
         text-align: left;
-        border-bottom: 0.5px dashed #000;
+        border-bottom: 1px dashed #000;
     }
 
     .rec-table td {
@@ -492,11 +505,11 @@ button {
     }
 
     .rec-total {
-        border-top: 0.5px dashed #000;
+        border-top: 1px dashed #000;
         margin-top: 5px;
         padding-top: 5px;
         text-align: right;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: bold;
     }
 

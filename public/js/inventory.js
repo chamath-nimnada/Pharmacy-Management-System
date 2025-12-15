@@ -16,7 +16,7 @@ async function loadInventory() {
     } catch (error) {
         console.error("Error loading inventory:", error);
         const tbody = document.getElementById('inventory-list');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8">Error connecting to server.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9">Error connecting to server.</td></tr>';
     }
 }
 
@@ -28,7 +28,7 @@ function renderInventory(products) {
     tbody.innerHTML = '';
 
     if (!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
         return;
     }
 
@@ -69,6 +69,11 @@ function renderInventory(products) {
                 <td>LKR ${parseFloat(group.price).toFixed(2)}</td>
                 <td style="font-weight:bold;">${group.totalQty}</td>
                 <td>${nearestExpiry}</td>
+                <td>
+                    <button class="btn-danger" onclick="deleteProduct('${group.product_code}', this)">
+                        Delete
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -78,7 +83,7 @@ function renderInventory(products) {
 async function addProduct() {
     const barcodeEl = document.getElementById('inv-barcode');
     const nameEl = document.getElementById('inv-name');
-    const companyEl = document.getElementById('inv-company'); // NEW
+    const companyEl = document.getElementById('inv-company');
     const priceEl = document.getElementById('inv-price');
     const qtyEl = document.getElementById('inv-qty');
     const catEl = document.getElementById('inv-category');
@@ -90,7 +95,7 @@ async function addProduct() {
     const payload = {
         barcode: barcodeEl.value.trim(),
         name: nameEl.value.trim(),
-        company_name: companyEl.value.trim(), // NEW
+        company_name: companyEl.value.trim(),
         price: parseFloat(priceEl.value || 0),
         qty: parseInt(qtyEl.value || 0),
         category: catEl.value,
@@ -159,7 +164,40 @@ async function addProduct() {
     }
 }
 
-// 4. FILTER LOGIC (Category + Search)
+// 4. Delete Product (Double Click Logic)
+async function deleteProduct(code, btn) {
+    // First click: Confirmation
+    if (btn.innerText !== "Confirm?") {
+        btn.innerText = "Confirm?";
+        btn.style.backgroundColor = "#f59e0b"; // Orange warning
+        // Reset if not clicked again
+        setTimeout(() => {
+            if (btn && btn.innerText === "Confirm?") {
+                btn.innerText = "Delete";
+                btn.style.backgroundColor = ""; // Back to default class style (red)
+            }
+        }, 3000);
+        return;
+    }
+
+    // Second click: Execution
+    btn.innerText = "Deleting...";
+    try {
+        const res = await fetch(`/api/products/${code}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadInventory(); // Auto refresh
+        } else {
+            btn.innerText = "Error";
+            btn.style.backgroundColor = "#ef4444";
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerText = "Network Error";
+        btn.style.backgroundColor = "#ef4444";
+    }
+}
+
+// 5. FILTER LOGIC (Category + Search)
 function filterInventory() {
     const searchEl = document.getElementById('inv-search');
     const catEl = document.getElementById('inv-filter-cat');
@@ -170,7 +208,7 @@ function filterInventory() {
     const filtered = inventoryData.filter(item => {
         const itemName = (item.name || '').toLowerCase();
         const barcode = (item.barcode || '').toString().toLowerCase();
-        const company = (item.company_name || '').toLowerCase(); // NEW
+        const company = (item.company_name || '').toLowerCase();
 
         // Match Name, Barcode OR Company
         const matchesSearch = itemName.includes(searchText) ||

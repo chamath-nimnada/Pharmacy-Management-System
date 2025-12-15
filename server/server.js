@@ -13,7 +13,7 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// --- 1. DATABASE MANAGEMENT ROUTES (NEW) ---
+// --- 1. DATABASE MANAGEMENT ROUTES ---
 
 // Export Database
 app.get('/api/export-db', (req, res) => {
@@ -102,6 +102,15 @@ app.post('/api/products', (req, res) => {
                 proceedToSave(finalProductCode);
             });
         }
+    });
+});
+
+// NEW: Delete Product (All batches with this ID)
+app.delete('/api/products/:code', (req, res) => {
+    const code = req.params.code;
+    db.run("DELETE FROM products WHERE product_code = ?", [code], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Product deleted", changes: this.changes });
     });
 });
 

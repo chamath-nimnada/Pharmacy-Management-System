@@ -1,25 +1,43 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
+const { app } = require('electron'); // Import Electron to get system paths
 
-// Database File Path
-const dbPath = path.resolve(__dirname, '../db/pharmacy.db');
+// --- DETERMINE DATABASE PATH ---
+let dbPath;
 
-// The active database instance
+if (app.isPackaged) {
+    // PRODUCTION: Use User Data folder (Writable)
+    // Windows: C:\Users\Name\AppData\Roaming\PharmaPOS\pharmacy.db
+    const userDataPath = app.getPath('userData');
+
+    // Create folder if it doesn't exist
+    if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+    }
+    dbPath = path.join(userDataPath, 'pharmacy.db');
+} else {
+    // DEVELOPMENT: Use local project folder
+    dbPath = path.resolve(__dirname, '../db/pharmacy.db');
+}
+
+console.log("Database Path:", dbPath);
+
+// --- CONNECT ---
 let db;
 
-// Function to (Re)Connect
 function connect() {
     db = new sqlite3.Database(dbPath, (err) => {
-        if (err) console.error(err.message);
+        if (err) console.error("DB Connection Error:", err.message);
         else console.log('Connected to SQLite database.');
     });
     createTables();
 }
 
-// Initialize Tables & Migrations
+// --- INITIALIZE TABLES ---
 function createTables() {
     db.serialize(() => {
-        // Products Table
+        // Products
         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode TEXT, 
@@ -32,7 +50,7 @@ function createTables() {
             product_code INTEGER
         )`);
 
-        // Sales Table
+        // Sales
         db.run(`CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -40,7 +58,7 @@ function createTables() {
             payment_method TEXT
         )`);
 
-        // Sale Items Table
+        // Sale Items
         db.run(`CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sale_id INTEGER,
@@ -50,7 +68,7 @@ function createTables() {
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
 
-        // Purchase Invoices
+        // Invoices
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             supplier_name TEXT,
@@ -61,25 +79,21 @@ function createTables() {
             status TEXT DEFAULT 'Pending'
         )`);
 
-        // --- SAFE MIGRATIONS (Ignore errors if columns exist) ---
+        // Safe Migrations
         db.run("ALTER TABLE products ADD COLUMN company_name TEXT", () => { });
         db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", () => { });
     });
 }
 
-// Initial Connection
 connect();
 
-// Export a Proxy Object + Management Methods
+// Export Proxy
 module.exports = {
-    // Proxy these standard methods to the current 'db' instance
     run: (...args) => db.run(...args),
     get: (...args) => db.get(...args),
     all: (...args) => db.all(...args),
     prepare: (...args) => db.prepare(...args),
     serialize: (cb) => db.serialize(cb),
-
-    // Management methods for Import/Export
     close: (cb) => db.close(cb),
     reconnect: () => connect(),
     getDbPath: () => dbPath

@@ -33,9 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadHistory();   // From history.js
                     break;
                 case 'billing':
-                    // Just clear search, keep cart? Or clear? 
-                    // Usually better to keep cart if they accidentally clicked away.
+                    // Focus input
                     document.getElementById('barcode-input').focus();
+                    // UPDATED: Refresh product list for search (in case items were added in Inventory tab)
+                    if (typeof fetchProductsForBilling === 'function') {
+                        fetchProductsForBilling();
+                    }
+                    break;
+                case 'settings':
+                    // Settings are mostly static, but you can add reset logic here if needed
                     break;
             }
         });

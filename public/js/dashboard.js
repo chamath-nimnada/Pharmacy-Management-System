@@ -1,32 +1,26 @@
-let salesChartInstance = null; // Store chart to destroy/update later
+let salesChartInstance = null; 
 
 async function loadDashboard() {
     try {
-        // Get Preferences
         const lowStockPref = localStorage.getItem('pref_lowStock') || 10;
         const expiryPref = localStorage.getItem('pref_expiryDays') || 90;
         const pendingPref = localStorage.getItem('pref_pendingDays') || 30;
 
-        // Update Pending Label
         const pendingLabel = document.getElementById('pending-days-label');
         if(pendingLabel) pendingLabel.innerText = `(Next ${pendingPref} Days)`;
 
-        // Fetch with params
         const res = await fetch(`/api/dashboard-stats?minStock=${lowStockPref}&minExpiryDays=${expiryPref}&pendingDays=${pendingPref}`);
         const data = await res.json();
 
-        // 1. Populate Cards
         document.getElementById('today-sales').innerText = `LKR ${(data.todaySales || 0).toFixed(2)}`;
         document.getElementById('monthly-sales').innerText = `LKR ${(data.monthlySales || 0).toFixed(2)}`;
         document.getElementById('due-current').innerText = `LKR ${(data.pendingPayments || 0).toFixed(2)}`;
         document.getElementById('total-products').innerText = `${data.totalProducts || 0}`;
 
-        // Update Month Label
         const monthName = new Date().toLocaleString('default', { month: 'long' });
         const monthLabel = document.getElementById('monthly-sales-label');
         if(monthLabel) monthLabel.innerText = `${monthName} Revenue`;
 
-        // 2. Populate Separate Alerts Tables
         const stockBody = document.querySelector('#stock-table tbody');
         const expiryBody = document.querySelector('#expiry-table tbody');
 
@@ -37,12 +31,14 @@ async function loadDashboard() {
             const expiryDate = new Date(item.expiry_date);
             const today = new Date();
             const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+            
+            // USE TRADE NAME (server now maps this to item.name in response, but let's be safe)
+            const displayName = item.trade_name || item.name;
 
-            // CHECK 1: Low Stock (Using preference)
             if (item.qty < parseInt(lowStockPref)) {
                 stockBody.innerHTML += `
                     <tr>
-                        <td>${item.name}</td>
+                        <td>${displayName}</td>
                         <td style="color: var(--warning); font-weight:bold;">${item.qty} Left</td>
                         <td>
                             <button class="btn-sm" 
@@ -55,11 +51,10 @@ async function loadDashboard() {
                 `;
             }
 
-            // CHECK 2: Expiring (Using preference)
             if (diffDays < parseInt(expiryPref)) {
                 expiryBody.innerHTML += `
                     <tr>
-                        <td>${item.name}</td>
+                        <td>${displayName}</td>
                         <td style="color: var(--danger); font-weight:bold;">${diffDays} Days</td>
                         <td>
                             <button class="btn-sm" 
@@ -73,11 +68,9 @@ async function loadDashboard() {
             }
         });
 
-        // Handle Empty States
         if (stockBody.innerHTML === '') stockBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#999;">No Low Stock Items</td></tr>';
         if (expiryBody.innerHTML === '') expiryBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#999;">No Expiring Items</td></tr>';
 
-        // 3. Render Chart (Sales Trend)
         renderChart(data.chartData);
 
     } catch (err) {

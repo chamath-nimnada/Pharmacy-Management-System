@@ -1,23 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
-const { app } = require('electron'); // Import Electron to get system paths
+const { app } = require('electron');
 
 // --- DETERMINE DATABASE PATH ---
 let dbPath;
 
 if (app.isPackaged) {
-    // PRODUCTION: Use User Data folder (Writable)
-    // Windows: C:\Users\Name\AppData\Roaming\PharmaPOS\pharmacy.db
     const userDataPath = app.getPath('userData');
-
-    // Create folder if it doesn't exist
     if (!fs.existsSync(userDataPath)) {
         fs.mkdirSync(userDataPath, { recursive: true });
     }
     dbPath = path.join(userDataPath, 'pharmacy.db');
 } else {
-    // DEVELOPMENT: Use local project folder
     dbPath = path.resolve(__dirname, '../db/pharmacy.db');
 }
 
@@ -37,11 +32,12 @@ function connect() {
 // --- INITIALIZE TABLES ---
 function createTables() {
     db.serialize(() => {
-        // Products
+        // Products - UPDATED with generic_name and trade_name
         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode TEXT, 
-            name TEXT,
+            generic_name TEXT,
+            trade_name TEXT,
             price REAL,
             category TEXT,
             qty INTEGER,
@@ -79,9 +75,31 @@ function createTables() {
             status TEXT DEFAULT 'Pending'
         )`);
 
-        // Safe Migrations
-        db.run("ALTER TABLE products ADD COLUMN company_name TEXT", () => { });
-        db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", () => { });
+        // --- SAFE MIGRATIONS ---
+        // Add new columns if they don't exist (for existing DBs)
+        
+        // 1. Add company_name (Previous migration)
+        db.run("ALTER TABLE products ADD COLUMN company_name TEXT", (err) => { 
+            // Ignore error if column exists
+        });
+        
+        // 2. Add product_code (Previous migration)
+        db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", (err) => { });
+
+        // 3. NEW: Add generic_name
+        db.run("ALTER TABLE products ADD COLUMN generic_name TEXT", (err) => {
+             // If successful, and 'name' exists, we might want to copy 'name' to 'trade_name' later logic or manually
+        });
+
+        // 4. NEW: Add trade_name
+        db.run("ALTER TABLE products ADD COLUMN trade_name TEXT", (err) => { 
+            if(!err) {
+                // MIGRATION LOGIC: If 'name' column existed, SQLite doesn't drop it automatically with ALTER.
+                // We will copy existing 'name' data to 'trade_name' if trade_name is NULL
+                db.run("UPDATE products SET trade_name = name WHERE trade_name IS NULL AND name IS NOT NULL");
+                db.run("UPDATE products SET generic_name = 'Generic' WHERE generic_name IS NULL");
+            }
+        });
     });
 }
 

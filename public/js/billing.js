@@ -22,19 +22,23 @@ document.querySelectorAll('.discount-input').forEach(input => {
 const barcodeInput = document.getElementById('barcode-input');
 barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        const val = barcodeInput.value.trim();
-        // Match Barcode, Name, OR Product Code (ID)
-        const product = products.find(p =>
-            p.barcode === val ||
-            p.name.toLowerCase() === val.toLowerCase() ||
-            (p.product_code && p.product_code.toString() === val)
-        );
+        const val = barcodeInput.value.trim().toLowerCase();
+        
+        // Updated Search Logic: Check Trade, Generic, Barcode, Code
+        const product = products.find(p => {
+            const trade = (p.trade_name || p.name || '').toLowerCase();
+            const generic = (p.generic_name || '').toLowerCase();
+            const barcode = (p.barcode || '').toLowerCase();
+            const pCode = (p.product_code || '').toString();
+
+            return barcode === val || pCode === val || trade === val || generic === val;
+        });
 
         if (product) {
             addToCart(product);
             barcodeInput.value = '';
             barcodeInput.style.borderColor = "";
-            barcodeInput.placeholder = "Scan Barcode or Search Product...";
+            barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
         } else {
             // Visual Feedback for Not Found
             barcodeInput.value = '';
@@ -42,7 +46,7 @@ barcodeInput.addEventListener('keypress', (e) => {
             barcodeInput.placeholder = "⚠ Product Not Found!";
             setTimeout(() => {
                 barcodeInput.style.borderColor = "";
-                barcodeInput.placeholder = "Scan Barcode or Search Product...";
+                barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
             }, 1500);
         }
     }
@@ -53,7 +57,12 @@ function addToCart(product) {
     if (existing) {
         existing.buyQty++;
     } else {
-        cart.push({ ...product, buyQty: 1 });
+        // Map Display Name for Cart (Use Trade Name)
+        cart.push({ 
+            ...product, 
+            name: product.trade_name || product.name, 
+            buyQty: 1 
+        });
     }
     renderCart();
 }
@@ -200,9 +209,13 @@ async function processSale() {
                     totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
                 }
 
+                // UPDATED: Added Generic Name under Trade Name
                 recItemsBody.innerHTML += `
                     <tr>
-                        <td style="font-size:11px;">${item.name}</td>
+                        <td style="font-size:11px;">
+                            ${item.name}
+                            ${item.generic_name ? `<br><span style="font-size:9px; color:black;">(${item.generic_name})</span>` : ''}
+                        </td>
                         <td style="font-size:11px;">${priceDisplay}</td>
                         <td style="font-size:11px; text-align:center;">${item.buyQty}</td>
                         <td style="text-align:right; font-size:11px;">${totalDisplay}</td>

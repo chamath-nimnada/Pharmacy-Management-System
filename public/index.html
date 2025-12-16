@@ -75,8 +75,7 @@
 
             <div class="stats-grid" style="margin-top: 0; gap: 24px;">
                 <div class="table-container" style="margin-top:0;">
-                    <div
-                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
                         <span class="material-icons-round" style="color:var(--warning)">inventory_2</span>
                         <h3 style="margin:0; color:var(--text-main); font-size:16px;">Low Stock Alerts</h3>
                     </div>
@@ -93,8 +92,7 @@
                 </div>
 
                 <div class="table-container" style="margin-top:0;">
-                    <div
-                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
                         <span class="material-icons-round" style="color:var(--danger)">event_busy</span>
                         <h3 style="margin:0; color:var(--text-main); font-size:16px;">Expiring Soon</h3>
                     </div>
@@ -118,8 +116,7 @@
                 <div class="billing-left">
                     <div class="search-bar">
                         <span class="material-icons-round">qr_code_scanner</span>
-                        <input type="text" id="barcode-input" placeholder="Scan Barcode, Product ID, or Name..."
-                            autofocus>
+                        <input type="text" id="barcode-input" placeholder="Scan Barcode, Trade Name, or Generic..." autofocus>
                     </div>
                     <div class="cart-area">
                         <table class="styled-table">
@@ -144,18 +141,15 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                             <div>
                                 <label style="font-size:12px;">Medicine</label>
-                                <input type="number" id="disc-medicine" class="discount-input" placeholder="0" min="0"
-                                    max="100">
+                                <input type="number" id="disc-medicine" class="discount-input" placeholder="0" min="0" max="100">
                             </div>
                             <div>
                                 <label style="font-size:12px;">Drug</label>
-                                <input type="number" id="disc-drug" class="discount-input" placeholder="0" min="0"
-                                    max="100">
+                                <input type="number" id="disc-drug" class="discount-input" placeholder="0" min="0" max="100">
                             </div>
                             <div>
                                 <label style="font-size:12px;">Other</label>
-                                <input type="number" id="disc-other" class="discount-input" placeholder="0" min="0"
-                                    max="100">
+                                <input type="number" id="disc-other" class="discount-input" placeholder="0" min="0" max="100">
                             </div>
                         </div>
 
@@ -169,8 +163,7 @@
 
                     <div>
                         <div class="summary-row"><span>Subtotal</span><span id="sub-total">0.00</span></div>
-                        <div class="summary-row"><span>Discount</span><span id="disc-total"
-                                style="color:var(--danger)">0.00</span></div>
+                        <div class="summary-row"><span>Discount</span><span id="disc-total" style="color:var(--danger)">0.00</span></div>
                         <div class="summary-row total"><span>Total</span><span id="grand-total">LKR 0.00</span></div>
 
                         <button onclick="processSale()" class="btn-checkout">
@@ -198,9 +191,11 @@
                         style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
-                    <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)" onkeydown="nav(event, 'inv-name')" onblur="checkExistingProduct(this.value)">
-                    <input type="text" id="inv-name" placeholder="Product Name" onkeydown="nav(event, 'inv-company')">
-                    <input type="text" id="inv-company" placeholder="Company Name" onkeydown="nav(event, 'inv-price')">
+                    <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)" onkeydown="nav(event, 'inv-trade-name')" onblur="checkExistingProduct(this.value)">
+                    <input type="text" id="inv-trade-name" placeholder="Trade Name (e.g. Panadol)" onkeydown="nav(event, 'inv-generic-name')">
+                    <input type="text" id="inv-generic-name" placeholder="Generic Name (e.g. Paracetamol)" onkeydown="nav(event, 'inv-company')">
+                    
+                    <input type="text" id="inv-company" placeholder="Company" onkeydown="nav(event, 'inv-price')">
                     <input type="number" id="inv-price" placeholder="Price (LKR)" onkeydown="nav(event, 'inv-qty')">
                     <input type="number" id="inv-qty" placeholder="Quantity" onkeydown="nav(event, 'inv-category')">
                     <select id="inv-category" onkeydown="nav(event, 'inv-expiry')">
@@ -223,8 +218,10 @@
              <div class="form-grid">
                  <input type="hidden" id="edit-code">
                  <input type="text" id="edit-barcode" placeholder="Barcode" disabled style="background: #e2e8f0;">
-                 <input type="text" id="edit-name" placeholder="Product Name">
-                 <input type="text" id="edit-company" placeholder="Company Name">
+                 <input type="text" id="edit-trade-name" placeholder="Trade Name">
+                 <input type="text" id="edit-generic-name" placeholder="Generic Name">
+                 
+                 <input type="text" id="edit-company" placeholder="Company">
                  <input type="number" id="edit-price" placeholder="Price (LKR)">
                  <select id="edit-category">
                      <option value="Medicine">Medicine</option>
@@ -261,7 +258,8 @@
                         <tr>
                             <th>ID</th>
                             <th>Barcode</th>
-                            <th>Name</th>
+                            <th>Trade Name</th>
+                            <th>Generic Name</th>
                             <th>Company</th>
                             <th>Category</th>
                             <th>Price</th>
@@ -276,8 +274,7 @@
         </section>
 
         <section id="purchases" class="view hidden">
-            <h1>Purchases & Invoices</h1>
-
+             <h1>Purchases & Invoices</h1>
             <div class="card form-card">
                 <h3>Record New Invoice</h3>
                 <div class="form-grid">
@@ -296,7 +293,7 @@
                     <button onclick="addInvoice()" class="btn-primary">Add Record</button>
                 </div>
             </div>
-
+            
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
                 <div class="search-bar"
                     style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
@@ -335,8 +332,8 @@
         </section>
 
         <section id="history" class="view hidden">
-            <h1>Sales History</h1>
-            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+             <h1>Sales History</h1>
+             <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
                 <div class="search-bar"
                     style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>

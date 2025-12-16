@@ -21,8 +21,58 @@ function saveAlertSettings() {
     alert("Preferences Saved! Dashboard will update.");
 }
 
+// --- NEW: Receipt Settings Logic ---
+
+function saveReceiptSettings() {
+    const name = document.getElementById('set-rec-name').value;
+    const add1 = document.getElementById('set-rec-address1').value;
+    const add2 = document.getElementById('set-rec-address2').value;
+    const contact = document.getElementById('set-rec-contact').value;
+    const footer = document.getElementById('set-rec-footer').value;
+
+    localStorage.setItem('rec_name', name);
+    localStorage.setItem('rec_add1', add1);
+    localStorage.setItem('rec_add2', add2);
+    localStorage.setItem('rec_contact', contact);
+    localStorage.setItem('rec_footer', footer);
+
+    alert("Receipt Design Saved!");
+    applyReceiptSettings(); // Update the hidden print area immediately
+}
+
+function applyReceiptSettings() {
+    // Defaults if nothing is saved
+    const name = localStorage.getItem('rec_name') || "HIRU PHARMACY & GROCERY";
+    const add1 = localStorage.getItem('rec_add1') || "61/A, Biyagama Road, Balummahara";
+    const add2 = localStorage.getItem('rec_add2') || "Mudungoda";
+    const contact = localStorage.getItem('rec_contact') || "Tel: 070-2682795 | 071-7978277";
+    const footer = localStorage.getItem('rec_footer') || "Thank You for your purchase!\nNo Returns on Medicine";
+
+    // Update Print Area
+    const printName = document.getElementById('print-shop-name');
+    if(printName) {
+        printName.innerText = name;
+        document.getElementById('print-address-1').innerText = add1;
+        document.getElementById('print-address-2').innerText = add2;
+        document.getElementById('print-contact').innerText = contact;
+        // Handle newlines for footer
+        document.getElementById('print-footer-msg').innerHTML = footer.replace(/\n/g, '<br>');
+    }
+
+    // Update Settings Inputs (so they show current values when user goes to Settings tab)
+    const nameInput = document.getElementById('set-rec-name');
+    if(nameInput) {
+        nameInput.value = name;
+        document.getElementById('set-rec-address1').value = add1;
+        document.getElementById('set-rec-address2').value = add2;
+        document.getElementById('set-rec-contact').value = contact;
+        document.getElementById('set-rec-footer').value = footer;
+    }
+}
+
 // Load Preferences on Start
 document.addEventListener("DOMContentLoaded", () => {
+    // Dashboard Prefs
     const lowStock = localStorage.getItem('pref_lowStock') || 10;
     const expiryDays = localStorage.getItem('pref_expiryDays') || 90;
     const pendingDays = localStorage.getItem('pref_pendingDays') || 30;
@@ -34,6 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if(stockInput) stockInput.value = lowStock;
     if(expiryInput) expiryInput.value = expiryDays;
     if(pendingInput) pendingInput.value = pendingDays;
+
+    // Apply Receipt Prefs
+    applyReceiptSettings();
 });
 
 // Handle File Selection

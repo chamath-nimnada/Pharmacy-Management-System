@@ -365,41 +365,81 @@
         <section id="settings" class="view hidden">
             <h1>Settings</h1>
 
-            <div class="card" style="max-width: 500px; margin-bottom: 20px;">
-                <h3>Alert & Dashboard Preferences</h3>
-                <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize dashboard low stock, expiry, and payment warnings.</p>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 15px;">
-                    <div>
-                        <label style="font-size: 12px; font-weight: 500;">Low Stock (Qty)</label>
-                        <input type="number" id="set-low-stock" placeholder="Default: 10">
+            <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+                
+                <div style="flex: 1; min-width: 300px; max-width: 500px;">
+                    
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3>Alert & Dashboard Preferences</h3>
+                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize dashboard low stock, expiry, and payment warnings.</p>
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 15px;">
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Low Stock (Qty)</label>
+                                <input type="number" id="set-low-stock" placeholder="Default: 10">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Expiry Alert (Days)</label>
+                                <input type="number" id="set-expiry-days" placeholder="Default: 90">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Pending Due (Days)</label>
+                                <input type="number" id="set-pending-days" placeholder="Default: 30">
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="saveAlertSettings()">Save Preferences</button>
                     </div>
-                    <div>
-                        <label style="font-size: 12px; font-weight: 500;">Expiry Alert (Days)</label>
-                        <input type="number" id="set-expiry-days" placeholder="Default: 90">
+
+                    <div class="card">
+                        <h3>Data Management</h3>
+                        <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
+
+                        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">
+                            Export Database
+                        </button>
+
+                        <button class="btn-primary" id="btn-import"
+                            style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;"
+                            onclick="triggerImport()">
+                            Import Database
+                        </button>
+
+                        <input type="file" id="db-upload" accept=".db" style="display: none;">
                     </div>
-                    <div>
-                        <label style="font-size: 12px; font-weight: 500;">Pending Due (Days)</label>
-                        <input type="number" id="set-pending-days" placeholder="Default: 30">
-                    </div>
+
                 </div>
-                <button class="btn-primary" onclick="saveAlertSettings()">Save Preferences</button>
-            </div>
 
-            <div class="card" style="max-width: 500px;">
-                <h3>Data Management</h3>
-                <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
+                <div style="flex: 1; min-width: 300px; max-width: 500px;">
+                    
+                    <div class="card">
+                        <h3>Receipt Design</h3>
+                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize your bill header and footer details.</p>
+                        <div class="form-grid" style="grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px;">
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Pharmacy Name</label>
+                                <input type="text" id="set-rec-name" placeholder="Ex: HIRU PHARMACY">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Address Line 1</label>
+                                <input type="text" id="set-rec-address1" placeholder="Ex: 61/A, Biyagama Road">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Address Line 2</label>
+                                <input type="text" id="set-rec-address2" placeholder="Ex: Balummahara">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Contact Numbers</label>
+                                <input type="text" id="set-rec-contact" placeholder="Ex: 070-1234567 | 071-7654321">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; font-weight: 500;">Footer Message</label>
+                                <input type="text" id="set-rec-footer" placeholder="Ex: Thank You! No Returns on Medicine.">
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="saveReceiptSettings()">Save Design</button>
+                    </div>
 
-                <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">
-                    Export Database
-                </button>
+                </div>
 
-                <button class="btn-primary" id="btn-import"
-                    style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;"
-                    onclick="triggerImport()">
-                    Import Database
-                </button>
-
-                <input type="file" id="db-upload" accept=".db" style="display: none;">
             </div>
         </section>
 
@@ -425,10 +465,10 @@
 
     <div id="receipt-print-area" class="print-only">
         <div class="rec-header">
-            <h2><b>HIRU PHARMACY & GROCERY</b></h2>
-            <p>61/A, Biyagama Road, Balummahara,</p>
-            <p>Mudungoda</p>
-            <p>Tel: 070-2682795 | 071-7978277</p>
+            <h2><b id="print-shop-name">HIRU PHARMACY & GROCERY</b></h2>
+            <p id="print-address-1">61/A, Biyagama Road, Balummahara,</p>
+            <p id="print-address-2">Mudungoda</p>
+            <p id="print-contact">Tel: 070-2682795 | 071-7978277</p>
         </div>
 
         <div class="rec-meta">
@@ -457,8 +497,7 @@
         </div>
 
         <div class="rec-footer">
-            <p>Thank You for your purchase!</p>
-            <p>No Returns on Medicine</p>
+            <p id="print-footer-msg">Thank You for your purchase!<br>No Returns on Medicine</p>
         </div>
     </div>
 

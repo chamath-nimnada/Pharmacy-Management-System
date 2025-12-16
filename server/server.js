@@ -158,6 +158,12 @@ app.delete('/api/batch/:id', (req, res) => {
 app.post('/api/sale', (req, res) => {
     const { items, total, method } = req.body;
 
+    // Get SYSTEM Local Date Time
+    // This creates a string like '2025-12-16 14:30:45' based on the computer's timezone
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
+
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
 
@@ -166,7 +172,8 @@ app.post('/api/sale', (req, res) => {
         const processItem = (index) => {
             if (index >= items.length) {
                 if (!errorOccurred) {
-                    db.run('INSERT INTO sales (total_amount, payment_method) VALUES (?,?)', [total, method], function (err) {
+                    // UPDATED: Insert 'localDateStr' into the date field
+                    db.run('INSERT INTO sales (total_amount, payment_method, date) VALUES (?,?,?)', [total, method, localDateStr], function (err) {
                         if (err) {
                             db.run('ROLLBACK');
                             return res.status(500).json({ error: err.message });

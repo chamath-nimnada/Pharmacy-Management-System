@@ -168,10 +168,10 @@ async function addProduct() {
                 barcodeEl.value = '';
                 tradeEl.value = '';
                 genericEl.value = '';
-                companyEl.value = ''; // FIXED: Clear Company
+                companyEl.value = ''; 
                 priceEl.value = '';
                 qtyEl.value = '';
-                expEl.value = '';     // FIXED: Clear Date
+                expEl.value = '';     
                 
                 barcodeEl.focus();
 
@@ -235,9 +235,15 @@ async function deleteProduct(code, btn) {
     }
 }
 
+// 4. Edit Product (Updated to Popup Modal and Single Batch logic)
 function editProduct(code) {
-    const product = inventoryData.find(p => p.product_code == code);
-    if (!product) return;
+    // Find all batches for this product code
+    const batches = inventoryData.filter(p => p.product_code == code);
+    
+    if (!batches || batches.length === 0) return;
+
+    // Use the first batch for general info (Trade Name, Generic, etc. are shared)
+    const product = batches[0];
 
     document.getElementById('edit-code').value = code;
     document.getElementById('edit-barcode').value = product.barcode;
@@ -247,7 +253,26 @@ function editProduct(code) {
     document.getElementById('edit-price').value = product.price;
     document.getElementById('edit-category').value = product.category;
 
-    document.getElementById('edit-product-form').style.display = 'block';
+    const singleBatchGroup = document.getElementById('edit-single-batch-group');
+    const multiBatchMsg = document.getElementById('edit-multi-batch-msg');
+    const singleBatchIdInput = document.getElementById('edit-single-batch-id');
+
+    // Logic: If Single Batch -> Show Qty/Date inputs. If Multi -> Show Message.
+    if (batches.length === 1) {
+        singleBatchGroup.style.display = 'contents';
+        multiBatchMsg.style.display = 'none';
+        
+        document.getElementById('edit-qty').value = product.qty;
+        document.getElementById('edit-expiry').value = product.expiry_date;
+        singleBatchIdInput.value = product.id; // Store ID for batch update
+    } else {
+        singleBatchGroup.style.display = 'none';
+        multiBatchMsg.style.display = 'flex';
+        singleBatchIdInput.value = ''; // Clear ID
+    }
+
+    // Show Modal (Flex for center alignment via modal-backdrop)
+    document.getElementById('edit-product-form').style.display = 'flex';
     document.getElementById('add-product-form').style.display = 'none';
 }
 
@@ -258,7 +283,13 @@ async function saveEdit() {
     const company = document.getElementById('edit-company').value;
     const price = document.getElementById('edit-price').value;
     const category = document.getElementById('edit-category').value;
-    const btn = document.querySelector('#edit-product-form button');
+    
+    // Single Batch Fields
+    const batchId = document.getElementById('edit-single-batch-id').value;
+    const qty = document.getElementById('edit-qty').value;
+    const expiry_date = document.getElementById('edit-expiry').value;
+
+    const btn = document.querySelector('#edit-product-form button.btn-primary');
 
     if(!trade_name) return alert("Trade Name is required");
 
@@ -266,7 +297,8 @@ async function saveEdit() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/products/${code}`, {
+        // 1. Update Product General Info
+        const resProduct = await fetch(`/api/products/${code}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -278,14 +310,23 @@ async function saveEdit() {
             })
         });
 
-        const result = await res.json();
+        if (!resProduct.ok) throw new Error("Failed to update general info");
 
-        if (res.ok) {
-            document.getElementById('edit-product-form').style.display = 'none';
-            loadInventory();
-        } else {
-            alert("Failed to update: " + (result.error || "Unknown Error"));
+        // 2. If Single Batch, Update Batch Info (Qty & Date)
+        if (batchId && qty && expiry_date) {
+            const resBatch = await fetch(`/api/batch/${batchId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qty: parseInt(qty), expiry_date })
+            });
+
+            if (!resBatch.ok) throw new Error("Failed to update batch details");
         }
+
+        // Success
+        document.getElementById('edit-product-form').style.display = 'none';
+        loadInventory();
+
     } catch (e) {
         console.error(e);
         alert("Error updating: " + e.message);
@@ -328,7 +369,7 @@ function viewBatches(code) {
 
     const displayName = batches[0].trade_name || batches[0].name;
     document.getElementById('batch-modal-title').innerText = `${displayName} (Batches)`;
-    document.getElementById('batches-modal').style.display = 'block';
+    document.getElementById('batches-modal').style.display = 'flex'; // Use Flex for modal-backdrop centering
 }
 
 function enableBatchInlineEdit(id, currentQty, currentExpiry) {
@@ -395,6 +436,7 @@ async function deleteBatch(id) {
             
             // Fix: Check if product still has any batches. If not, close modal.
             if(currentOpenProductCode) {
+                // IMPORTANT: Filter inventoryData again to check existence
                 const stillExists = inventoryData.some(p => (p.product_code && p.product_code == currentOpenProductCode) || (!p.product_code && p.barcode === currentOpenProductCode));
                 
                 if(stillExists) {

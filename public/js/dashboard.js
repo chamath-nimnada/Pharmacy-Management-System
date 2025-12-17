@@ -1,5 +1,25 @@
 let salesChartInstance = null; 
 
+// Helper to robustly parse dates (YYYY-MM-DD or MM/DD/YYYY)
+function parseDate(dateStr) {
+    if (!dateStr) return new Date();
+    
+    // Check if format is YYYY-MM-DD (Standard HTML5 Input)
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return new Date(dateStr);
+    }
+    
+    // Check if format is MM/DD/YYYY (User Manual Format)
+    if (dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+        const parts = dateStr.split('/');
+        // Month is 0-indexed in JS Date
+        return new Date(parts[2], parts[0] - 1, parts[1]);
+    }
+
+    // Fallback
+    return new Date(dateStr);
+}
+
 async function loadDashboard() {
     try {
         const lowStockPref = localStorage.getItem('pref_lowStock') || 10;
@@ -28,11 +48,16 @@ async function loadDashboard() {
         expiryBody.innerHTML = '';
 
         data.alerts.forEach(item => {
-            const expiryDate = new Date(item.expiry_date);
+            // UPDATED: Use helper to parse date correctly
+            const expiryDate = parseDate(item.expiry_date);
             const today = new Date();
-            const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+            // Reset time to compare only dates
+            today.setHours(0,0,0,0);
+            expiryDate.setHours(0,0,0,0);
+
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            // USE TRADE NAME (server now maps this to item.name in response, but let's be safe)
             const displayName = item.trade_name || item.name;
 
             if (item.qty < parseInt(lowStockPref)) {

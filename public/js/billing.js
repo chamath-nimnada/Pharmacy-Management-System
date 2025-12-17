@@ -18,46 +18,105 @@ document.querySelectorAll('.discount-input').forEach(input => {
     });
 });
 
-// Barcode Listener
+// Barcode Listener (Original Enter Logic)
 const barcodeInput = document.getElementById('barcode-input');
+const suggestionsList = document.getElementById('suggestions-list');
+
 barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const val = barcodeInput.value.trim().toLowerCase();
-        
-        // Updated Search Logic: Check Trade, Generic, Barcode, Code
-        const product = products.find(p => {
-            const trade = (p.trade_name || p.name || '').toLowerCase();
-            const generic = (p.generic_name || '').toLowerCase();
-            const barcode = (p.barcode || '').toLowerCase();
-            const pCode = (p.product_code || '').toString();
-
-            return barcode === val || pCode === val || trade === val || generic === val;
-        });
-
-        if (product) {
-            addToCart(product);
-            barcodeInput.value = '';
-            barcodeInput.style.borderColor = "";
-            barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
-        } else {
-            // Visual Feedback for Not Found
-            barcodeInput.value = '';
-            barcodeInput.style.borderColor = "var(--danger)";
-            barcodeInput.placeholder = "⚠ Product Not Found!";
-            setTimeout(() => {
-                barcodeInput.style.borderColor = "";
-                barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
-            }, 1500);
-        }
+        handleSearch(val);
+        suggestionsList.style.display = 'none';
     }
 });
+
+// NEW: Search Suggestions Logic
+barcodeInput.addEventListener('input', (e) => {
+    const val = e.target.value.toLowerCase().trim();
+    if (val.length < 1) {
+        suggestionsList.style.display = 'none';
+        return;
+    }
+
+    // Filter Suggestions
+    const matches = products.filter(p => {
+        const trade = (p.trade_name || p.name || '').toLowerCase();
+        const generic = (p.generic_name || '').toLowerCase();
+        const barcode = (p.barcode || '').toLowerCase();
+        return trade.includes(val) || generic.includes(val) || barcode.includes(val);
+    });
+
+    // Remove Duplicates (by barcode/code) for display
+    const uniqueMatches = [];
+    const seenCodes = new Set();
+    matches.forEach(m => {
+        const code = m.product_code || m.barcode;
+        if (!seenCodes.has(code)) {
+            seenCodes.add(code);
+            uniqueMatches.push(m);
+        }
+    });
+
+    if (uniqueMatches.length > 0) {
+        suggestionsList.innerHTML = '';
+        uniqueMatches.slice(0, 10).forEach(item => { // Limit to 10
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.innerHTML = `
+                <span><b>${item.trade_name || item.name}</b> <small>(${item.generic_name || ''})</small></span>
+                <span style="color:#666;">${item.qty} in stock</span>
+            `;
+            div.onclick = () => {
+                addToCart(item);
+                barcodeInput.value = '';
+                suggestionsList.style.display = 'none';
+            };
+            suggestionsList.appendChild(div);
+        });
+        suggestionsList.style.display = 'block';
+    } else {
+        suggestionsList.style.display = 'none';
+    }
+});
+
+// Hide suggestions when clicking outside
+document.addEventListener('click', (e) => {
+    if (!barcodeInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+        suggestionsList.style.display = 'none';
+    }
+});
+
+function handleSearch(val) {
+    const product = products.find(p => {
+        const trade = (p.trade_name || p.name || '').toLowerCase();
+        const generic = (p.generic_name || '').toLowerCase();
+        const barcode = (p.barcode || '').toLowerCase();
+        const pCode = (p.product_code || '').toString();
+
+        return barcode === val || pCode === val || trade === val || generic === val;
+    });
+
+    if (product) {
+        addToCart(product);
+        barcodeInput.value = '';
+        barcodeInput.style.borderColor = "";
+        barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
+    } else {
+        barcodeInput.value = '';
+        barcodeInput.style.borderColor = "var(--danger)";
+        barcodeInput.placeholder = "⚠ Product Not Found!";
+        setTimeout(() => {
+            barcodeInput.style.borderColor = "";
+            barcodeInput.placeholder = "Scan Barcode, Trade Name, or Generic...";
+        }, 1500);
+    }
+}
 
 function addToCart(product) {
     const existing = cart.find(c => c.barcode === product.barcode);
     if (existing) {
         existing.buyQty++;
     } else {
-        // Map Display Name for Cart (Use Trade Name)
         cart.push({ 
             ...product, 
             name: product.trade_name || product.name, 
@@ -72,7 +131,6 @@ function removeFromCart(index) {
     renderCart();
 }
 
-// Helper to get applicable discount
 function getDiscountForItem(category) {
     const medInput = document.getElementById('disc-medicine');
     const drugInput = document.getElementById('disc-drug');
@@ -96,23 +154,19 @@ function renderCart() {
     let totalDiscount = 0;
 
     cart.forEach((item, index) => {
-        // Calculate Line Totals
         const originalLineTotal = item.price * item.buyQty;
         subTotal += originalLineTotal;
 
-        // Apply Discount
         const discountPct = getDiscountForItem(item.category);
         const discountedPrice = item.price * (1 - discountPct / 100);
         const finalLineTotal = discountedPrice * item.buyQty;
 
         totalDiscount += (originalLineTotal - finalLineTotal);
 
-        // Display Logic
         let priceDisplay = item.price.toFixed(2);
         let totalDisplay = finalLineTotal.toFixed(2);
 
         if (discountPct > 0) {
-            // Use CSS class for thin line (Visual UI)
             priceDisplay = `<span class="strike-thin" style="font-size:11px;">${item.price.toFixed(2)}</span> <br> ${discountedPrice.toFixed(2)}`;
             totalDisplay = `<span class="strike-thin" style="font-size:11px;">${originalLineTotal.toFixed(2)}</span> <br> ${finalLineTotal.toFixed(2)}`;
         }
@@ -169,7 +223,6 @@ async function processSale() {
     btn.innerText = "Processing...";
 
     try {
-        // 1. Send to Backend
         const res = await fetch('/api/sale', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -179,7 +232,6 @@ async function processSale() {
         const result = await res.json();
 
         if (result.saleId) {
-            // 2. GENERATE BILL
             document.getElementById('rec-bill-no').innerText = result.saleId;
             document.getElementById('rec-date').innerText = new Date().toLocaleString('en-GB');
 
@@ -204,16 +256,15 @@ async function processSale() {
                 let totalDisplay = lineTotal.toFixed(2);
 
                 if (discountPct > 0) {
-                    // Use CSS class for thin line (Print Receipt)
                     priceDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalPrice.toFixed(2)}</span><br>${discountedPrice.toFixed(2)}`;
                     totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
                 }
 
-                // UPDATED: Added Generic Name under Trade Name
+                // UPDATED: Bold Trade Name & Increased Font Size
                 recItemsBody.innerHTML += `
                     <tr>
                         <td style="font-size:11px;">
-                            ${item.name}
+                            <span style="font-weight:bold; font-size:12px;">${item.name}</span>
                             ${item.generic_name ? `<br><span style="font-size:9px; color:black;">(${item.generic_name})</span>` : ''}
                         </td>
                         <td style="font-size:11px;">${priceDisplay}</td>
@@ -223,18 +274,14 @@ async function processSale() {
                 `;
             });
 
-            // Total Display Logic
             if (total < subTotal) {
-                // Use CSS class for thin line (Print Receipt Total)
                 document.getElementById('rec-total').innerHTML = `<span class="strike-thin" style="font-size:11px; text-decoration:line-through; text-decoration-thickness: 1px; text-decoration-style: dotted;">Rs. ${subTotal.toFixed(2)}</span><br>LKR ${total.toFixed(2)}`;
             } else {
                 document.getElementById('rec-total').innerText = `LKR ${total.toFixed(2)}`;
             }
 
-            // 3. Print
             window.print();
 
-            // 4. Cleanup
             cart = [];
             const discMed = document.getElementById('disc-medicine');
             const discDrug = document.getElementById('disc-drug');

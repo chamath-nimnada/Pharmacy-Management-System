@@ -20,12 +20,10 @@ async function loadInventory() {
     }
 }
 
-// 2. Render Table Rows (GROUPED BY BARCODE/PRODUCT CODE)
+// 2. Render Table Rows (OPTIMIZED FOR LARGE DATASETS)
 function renderInventory(products) {
     const tbody = document.getElementById('inventory-list');
     if (!tbody) return;
-
-    tbody.innerHTML = '';
 
     if (!products || products.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 20px; color: #666;">No products found matching filters.</td></tr>';
@@ -43,16 +41,17 @@ function renderInventory(products) {
         grouped[key].batches.push(item);
     });
 
+    // --- FIX: Build a string buffer to avoid DOM re-parsing in the loop ---
+    let htmlContent = '';
+
     Object.values(grouped).forEach(group => {
         group.batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
         const nearestExpiry = group.batches[0].expiry_date;
         const batchCount = group.batches.length;
 
-        // Use Trade Name (or name if legacy) for display
         const displayName = group.trade_name || group.name;
         const displayGeneric = group.generic_name || '-';
 
-        // --- BARCODE TRUNCATION LOGIC ---
         let displayBarcode = group.barcode || '';
         if (displayBarcode.length > 15) {
             displayBarcode = `${displayBarcode.substring(0, 15)}<span style="color:blue;">...</span>`;
@@ -87,7 +86,7 @@ function renderInventory(products) {
             `;
         }
 
-        tbody.innerHTML += `
+        htmlContent += `
             <tr style="${rowStyle}">
                 <td style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
                 <td style="font-family:monospace; font-weight:bold;">${displayBarcode}</td>
@@ -102,6 +101,9 @@ function renderInventory(products) {
             </tr>
         `;
     });
+
+    // Update the DOM exactly once
+    tbody.innerHTML = htmlContent;
 }
 
 // 3. Add New Product
@@ -164,7 +166,6 @@ async function addProduct() {
             saveBtn.style.backgroundColor = "#059669";
 
             setTimeout(() => {
-                // CLEAR FIELDS
                 barcodeEl.value = '';
                 tradeEl.value = '';
                 genericEl.value = '';
@@ -172,23 +173,18 @@ async function addProduct() {
                 priceEl.value = '';
                 qtyEl.value = '';
                 expEl.value = '';     
-                
                 barcodeEl.focus();
-
                 saveBtn.disabled = false;
                 saveBtn.innerText = "Save Item";
                 saveBtn.style.backgroundColor = "";
-
                 loadInventory();
             }, 800);
         } else {
-            console.error(result.error);
             saveBtn.innerText = "⚠ Error Saving";
             saveBtn.style.backgroundColor = "#ef4444";
             resetButton("Save Item");
         }
     } catch (e) {
-        console.error(e);
         saveBtn.innerText = "⚠ Network Error";
         saveBtn.style.backgroundColor = "#ef4444";
         resetButton("Save Item");
@@ -235,16 +231,12 @@ async function deleteProduct(code, btn) {
     }
 }
 
-// 4. Edit Product (Updated to Popup Modal and Single Batch logic)
+// 4. Edit Product logic
 function editProduct(code) {
-    // Find all batches for this product code
     const batches = inventoryData.filter(p => p.product_code == code);
-    
     if (!batches || batches.length === 0) return;
 
-    // Use the first batch for general info (Trade Name, Generic, etc. are shared)
     const product = batches[0];
-
     document.getElementById('edit-code').value = code;
     document.getElementById('edit-barcode').value = product.barcode;
     document.getElementById('edit-trade-name').value = product.trade_name || product.name;
@@ -257,21 +249,18 @@ function editProduct(code) {
     const multiBatchMsg = document.getElementById('edit-multi-batch-msg');
     const singleBatchIdInput = document.getElementById('edit-single-batch-id');
 
-    // Logic: If Single Batch -> Show Qty/Date inputs. If Multi -> Show Message.
     if (batches.length === 1) {
         singleBatchGroup.style.display = 'contents';
         multiBatchMsg.style.display = 'none';
-        
         document.getElementById('edit-qty').value = product.qty;
         document.getElementById('edit-expiry').value = product.expiry_date;
-        singleBatchIdInput.value = product.id; // Store ID for batch update
+        singleBatchIdInput.value = product.id;
     } else {
         singleBatchGroup.style.display = 'none';
         multiBatchMsg.style.display = 'flex';
-        singleBatchIdInput.value = ''; // Clear ID
+        singleBatchIdInput.value = '';
     }
 
-    // Show Modal (Flex for center alignment via modal-backdrop)
     document.getElementById('edit-product-form').style.display = 'flex';
     document.getElementById('add-product-form').style.display = 'none';
 }
@@ -284,52 +273,34 @@ async function saveEdit() {
     const price = document.getElementById('edit-price').value;
     const category = document.getElementById('edit-category').value;
     
-    // Single Batch Fields
     const batchId = document.getElementById('edit-single-batch-id').value;
     const qty = document.getElementById('edit-qty').value;
     const expiry_date = document.getElementById('edit-expiry').value;
 
     const btn = document.querySelector('#edit-product-form button.btn-primary');
-
     if(!trade_name) return alert("Trade Name is required");
 
     btn.innerText = "Updating...";
     btn.disabled = true;
 
     try {
-        // 1. Update Product General Info
-        const resProduct = await fetch(`/api/products/${code}`, {
+        await fetch(`/api/products/${code}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                trade_name, 
-                generic_name, 
-                company_name: company, 
-                price, 
-                category 
-            })
+            body: JSON.stringify({ trade_name, generic_name, company_name: company, price, category })
         });
 
-        if (!resProduct.ok) throw new Error("Failed to update general info");
-
-        // 2. If Single Batch, Update Batch Info (Qty & Date)
         if (batchId && qty && expiry_date) {
-            const resBatch = await fetch(`/api/batch/${batchId}`, {
+            await fetch(`/api/batch/${batchId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ qty: parseInt(qty), expiry_date })
             });
-
-            if (!resBatch.ok) throw new Error("Failed to update batch details");
         }
-
-        // Success
         document.getElementById('edit-product-form').style.display = 'none';
         loadInventory();
-
     } catch (e) {
-        console.error(e);
-        alert("Error updating: " + e.message);
+        alert("Error updating");
     } finally {
         btn.innerText = "Update Item";
         btn.disabled = false;
@@ -339,141 +310,58 @@ async function saveEdit() {
 // 6. View Batches
 function viewBatches(code) {
     currentOpenProductCode = code;
-    
     const batches = inventoryData.filter(p => (p.product_code && p.product_code == code) || (!p.product_code && p.barcode === code));
     if (batches.length === 0) return;
 
     const tbody = document.getElementById('batch-list-body');
     tbody.innerHTML = '';
-
     batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
 
     batches.forEach(b => {
         const dateObj = new Date(b.expiry_date);
         const formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : b.expiry_date;
-        const rowId = `batch-row-${b.id}`;
-
         tbody.innerHTML += `
-            <tr id="${rowId}">
+            <tr id="batch-row-${b.id}">
                 <td class="batch-date">${formattedDate}</td>
                 <td class="batch-qty" style="font-weight:bold;">${b.qty}</td>
-                <td class="batch-actions">
-                    <button class="btn-sm" style="background:#f59e0b; color:black; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px;" 
-                        onclick="enableBatchInlineEdit(${b.id}, '${b.qty}', '${b.expiry_date}')">Edit</button>
-                    <button class="btn-sm" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" 
-                        onclick="deleteBatch(${b.id})">Delete</button>
+                <td>
+                    <button class="btn-sm" style="background:#f59e0b; color:black;" onclick="enableBatchInlineEdit(${b.id}, '${b.qty}', '${b.expiry_date}')">Edit</button>
+                    <button class="btn-sm" style="background:#ef4444; color:white;" onclick="deleteBatch(${b.id})">Delete</button>
                 </td>
             </tr>
         `;
     });
 
-    const displayName = batches[0].trade_name || batches[0].name;
-    document.getElementById('batch-modal-title').innerText = `${displayName} (Batches)`;
-    document.getElementById('batches-modal').style.display = 'flex'; // Use Flex for modal-backdrop centering
-}
-
-function enableBatchInlineEdit(id, currentQty, currentExpiry) {
-    const row = document.getElementById(`batch-row-${id}`);
-    if(!row) return;
-
-    const dateCell = row.querySelector('.batch-date');
-    const qtyCell = row.querySelector('.batch-qty');
-    const actionCell = row.querySelector('.batch-actions');
-
-    dateCell.innerHTML = `<input type="date" id="edit-batch-date-${id}" value="${currentExpiry}" style="width:100%; padding:2px;">`;
-    qtyCell.innerHTML = `<input type="number" id="edit-batch-qty-${id}" value="${currentQty}" style="width:100%; padding:2px;">`;
-
-    actionCell.innerHTML = `
-        <button class="btn-sm" style="background:#059669; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; margin-right:5px;" 
-            onclick="saveBatchInline(${id})">Save</button>
-        <button class="btn-sm" style="background:#64748b; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" 
-            onclick="cancelBatchEdit()">Cancel</button>
-    `;
+    document.getElementById('batch-modal-title').innerText = `${batches[0].trade_name || batches[0].name} (Batches)`;
+    document.getElementById('batches-modal').style.display = 'flex';
 }
 
 async function saveBatchInline(id) {
     const newQty = document.getElementById(`edit-batch-qty-${id}`).value;
     const newExpiry = document.getElementById(`edit-batch-date-${id}`).value;
-
-    if(!newQty || !newExpiry) return alert("Invalid values");
-
     try {
         const res = await fetch(`/api/batch/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ qty: parseInt(newQty), expiry_date: newExpiry })
         });
-
         if (res.ok) {
             await loadInventory();
-            if(currentOpenProductCode) {
-                const exists = inventoryData.some(p => (p.product_code && p.product_code == currentOpenProductCode) || (!p.product_code && p.barcode === currentOpenProductCode));
-                if (exists) viewBatches(currentOpenProductCode);
-                else document.getElementById('batches-modal').style.display = 'none';
-            }
-        } else {
-            alert("Error updating batch.");
+            if(currentOpenProductCode) viewBatches(currentOpenProductCode);
         }
-    } catch (e) {
-        console.error(e);
-        alert("Network Error");
-    }
-}
-
-function cancelBatchEdit() {
-    if(currentOpenProductCode) {
-        viewBatches(currentOpenProductCode);
-    }
-}
-
-async function deleteBatch(id) {
-    if (!confirm("Are you sure you want to delete this batch?")) return;
-
-    try {
-        const res = await fetch(`/api/batch/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            await loadInventory(); 
-            
-            // Fix: Check if product still has any batches. If not, close modal.
-            if(currentOpenProductCode) {
-                // IMPORTANT: Filter inventoryData again to check existence
-                const stillExists = inventoryData.some(p => (p.product_code && p.product_code == currentOpenProductCode) || (!p.product_code && p.barcode === currentOpenProductCode));
-                
-                if(stillExists) {
-                    viewBatches(currentOpenProductCode); // Refresh list
-                } else {
-                    document.getElementById('batches-modal').style.display = 'none'; // Close modal
-                }
-            }
-        } else {
-            alert("Error deleting batch.");
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Network Error");
-    }
+    } catch (e) { console.error(e); }
 }
 
 function filterInventory() {
-    const searchEl = document.getElementById('inv-search');
-    const catEl = document.getElementById('inv-filter-cat');
-
-    const searchText = searchEl ? searchEl.value.toLowerCase() : '';
-    const selectedCategory = catEl ? catEl.value : 'all';
+    const searchText = (document.getElementById('inv-search')?.value || '').toLowerCase();
+    const selectedCategory = document.getElementById('inv-filter-cat')?.value || 'all';
 
     const filtered = inventoryData.filter(item => {
-        const trade = (item.trade_name || item.name || '').toLowerCase();
-        const generic = (item.generic_name || '').toLowerCase();
-        const barcode = (item.barcode || '').toString().toLowerCase();
-        const company = (item.company_name || '').toLowerCase();
-
-        const matchesSearch = trade.includes(searchText) ||
-            generic.includes(searchText) ||
-            barcode.includes(searchText) ||
-            company.includes(searchText);
-
+        const matchesSearch = (item.trade_name || item.name || '').toLowerCase().includes(searchText) ||
+                             (item.generic_name || '').toLowerCase().includes(searchText) ||
+                             (item.barcode || '').toString().toLowerCase().includes(searchText) ||
+                             (item.company_name || '').toLowerCase().includes(searchText);
         const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
-
         return matchesSearch && matchesCategory;
     });
 

@@ -32,7 +32,7 @@ function connect() {
 // --- INITIALIZE TABLES ---
 function createTables() {
     db.serialize(() => {
-        // Products - UPDATED with generic_name and trade_name
+        // Products
         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode TEXT, 
@@ -45,6 +45,11 @@ function createTables() {
             company_name TEXT,
             product_code INTEGER
         )`);
+
+        // --- PERFORMANCE INDEXES (CRITICAL FIX) ---
+        db.run("CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)");
+        db.run("CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)");
+        db.run("CREATE INDEX IF NOT EXISTS idx_products_expiry ON products(expiry_date)");
 
         // Sales
         db.run(`CREATE TABLE IF NOT EXISTS sales (
@@ -76,26 +81,11 @@ function createTables() {
         )`);
 
         // --- SAFE MIGRATIONS ---
-        // Add new columns if they don't exist (for existing DBs)
-        
-        // 1. Add company_name (Previous migration)
-        db.run("ALTER TABLE products ADD COLUMN company_name TEXT", (err) => { 
-            // Ignore error if column exists
-        });
-        
-        // 2. Add product_code (Previous migration)
+        db.run("ALTER TABLE products ADD COLUMN company_name TEXT", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", (err) => { });
-
-        // 3. NEW: Add generic_name
-        db.run("ALTER TABLE products ADD COLUMN generic_name TEXT", (err) => {
-             // If successful, and 'name' exists, we might want to copy 'name' to 'trade_name' later logic or manually
-        });
-
-        // 4. NEW: Add trade_name
+        db.run("ALTER TABLE products ADD COLUMN generic_name TEXT", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN trade_name TEXT", (err) => { 
             if(!err) {
-                // MIGRATION LOGIC: If 'name' column existed, SQLite doesn't drop it automatically with ALTER.
-                // We will copy existing 'name' data to 'trade_name' if trade_name is NULL
                 db.run("UPDATE products SET trade_name = name WHERE trade_name IS NULL AND name IS NOT NULL");
                 db.run("UPDATE products SET generic_name = 'Generic' WHERE generic_name IS NULL");
             }

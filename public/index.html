@@ -179,23 +179,19 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1>Inventory</h1>
                 <button class="btn-primary" onclick="document.getElementById('add-product-form').style.display='block'; document.getElementById('inv-barcode').focus();">
-                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add
-                    Product
+                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add Product
                 </button>
             </div>
 
-            <div id="add-product-form" class="card form-card"
-                style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
+            <div id="add-product-form" class="card form-card" style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                     <h3>Add New Item</h3>
-                    <button onclick="document.getElementById('add-product-form').style.display='none'"
-                        style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                    <button onclick="document.getElementById('add-product-form').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
                     <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)" onkeydown="nav(event, 'inv-trade-name')" onblur="checkExistingProduct(this.value)">
                     <input type="text" id="inv-trade-name" placeholder="Trade Name (e.g. Panadol)" onkeydown="nav(event, 'inv-generic-name')">
                     <input type="text" id="inv-generic-name" placeholder="Generic Name (e.g. Paracetamol)" onkeydown="nav(event, 'inv-company')">
-                    
                     <input type="text" id="inv-company" placeholder="Company" onkeydown="nav(event, 'inv-price')">
                     <input type="number" id="inv-price" placeholder="Price (LKR)" onkeydown="nav(event, 'inv-qty')">
                     <input type="number" id="inv-qty" placeholder="Quantity" onkeydown="nav(event, 'inv-category')">
@@ -210,13 +206,10 @@
             </div>
 
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div class="search-bar"
-                    style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                <div class="search-bar" style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="inv-search" placeholder="Search by Name, Barcode, or Company..."
-                        onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="inv-search" placeholder="Search by Name, Barcode, or Company..." onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
-
                 <select id="inv-filter-cat" onchange="filterInventory()" style="width: 200px;">
                     <option value="all">All Categories</option>
                     <option value="Medicine">Medicine</option>
@@ -247,42 +240,45 @@
         </section>
 
         <section id="purchases" class="view hidden">
-             <h1>Purchases & Invoices</h1>
-            <div class="card form-card">
-                <h3>Record New Invoice</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h1>Purchases & Invoices</h1>
+                <button class="btn-primary" onclick="document.getElementById('add-purchase-form-container').style.display='block'; document.getElementById('pur-supplier').focus();">
+                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add Invoice
+                </button>
+            </div>
+
+            <div id="add-purchase-form-container" class="card form-card" style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
+                    <h3>Record New Invoice</h3>
+                    <button onclick="document.getElementById('add-purchase-form-container').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                </div>
                 <div class="form-grid">
-                    <input type="text" id="pur-supplier" placeholder="Supplier Name" onkeydown="nav(event, 'pur-company')">
-                    <input type="text" id="pur-company" placeholder="Company Name" onkeydown="nav(event, 'pur-invoice')">
+                    <input type="text" id="pur-supplier" placeholder="Supplier Name" onkeydown="nav(event, 'pur-invoice')">
                     <input type="text" id="pur-invoice" placeholder="Invoice Number" onkeydown="nav(event, 'pur-amount')">
                     <input type="number" id="pur-amount" placeholder="Amount (LKR)" onkeydown="nav(event, 'pur-date')">
                     <div style="display:flex; flex-direction:column;">
-                        <label style="font-size:12px; color:var(--text-muted);">Due Date</label>
-                        <input type="date" id="pur-date" onkeydown="nav(event, 'pur-status')">
+                        <label style="font-size:12px; color:var(--text-muted);">Purchase Date</label>
+                        <input type="date" id="pur-date" onkeydown="nav(event, 'pur-due-days')">
                     </div>
+                    <input type="number" id="pur-due-days" placeholder="Due Days (e.g. 45)" onkeydown="nav(event, 'pur-status')">
                     <select id="pur-status" onkeydown="if(event.key==='Enter') addInvoice()">
                         <option value="Pending">Pending</option>
                         <option value="Paid">Paid</option>
                     </select>
-                    <button onclick="addInvoice()" class="btn-primary">Add Record</button>
+                    <button onclick="addInvoice()" class="btn-success">Save Record</button>
                 </div>
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
-                <div class="search-bar"
-                    style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                <div class="search-bar" style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="pur-search" placeholder="Search Invoice #..." onkeyup="filterPurchases()"
-                        style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="pur-search" placeholder="Search Supplier or Invoice #..." onkeyup="filterPurchases()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
 
-                <div class="filter-btns"
-                    style="display: flex; gap: 10px; background: white; padding: 5px; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
-                    <button onclick="filterStatus('all')"
-                        style="padding: 8px 16px; border-radius: 6px; background: var(--primary); color: white; font-weight: 500;">All</button>
-                    <button onclick="filterStatus('Pending')"
-                        style="padding: 8px 16px; border-radius: 6px; background: transparent; color: var(--text-main); font-weight: 500;">Pending</button>
-                    <button onclick="filterStatus('Paid')"
-                        style="padding: 8px 16px; border-radius: 6px; background: transparent; color: var(--text-main); font-weight: 500;">Paid</button>
+                <div class="filter-btns" style="display: flex; gap: 10px; background: white; padding: 5px; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
+                    <button class="pur-filter-btn active" onclick="filterStatus('all')">All</button>
+                    <button class="pur-filter-btn" onclick="filterStatus('Pending')">Pending</button>
+                    <button class="pur-filter-btn" onclick="filterStatus('Paid')">Paid</button>
                 </div>
             </div>
 
@@ -292,7 +288,6 @@
                         <tr>
                             <th>Due Date</th>
                             <th>Invoice #</th>
-                            <th>Company</th>
                             <th>Supplier</th>
                             <th>Amount</th>
                             <th>Status</th>
@@ -307,11 +302,9 @@
         <section id="history" class="view hidden">
              <h1>Sales History</h1>
              <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
-                <div class="search-bar"
-                    style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                <div class="search-bar" style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()"
-                        style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
                 <input type="date" id="history-date" onchange="filterHistory()" style="width: auto; background: white;">
                 <button class="btn-primary" onclick="loadHistory()" style="padding: 10px 15px;">Refresh</button>
@@ -334,11 +327,8 @@
 
         <section id="settings" class="view hidden">
             <h1>Settings</h1>
-
             <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
-                
                 <div style="flex: 1; min-width: 300px; max-width: 500px;">
-                    
                     <div class="card" style="margin-bottom: 24px;">
                         <h3>Alert & Dashboard Preferences</h3>
                         <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize dashboard low stock, expiry, and payment warnings.</p>
@@ -358,28 +348,15 @@
                         </div>
                         <button class="btn-primary" onclick="saveAlertSettings()">Save Preferences</button>
                     </div>
-
                     <div class="card">
                         <h3>Data Management</h3>
                         <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
-
-                        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">
-                            Export Database
-                        </button>
-
-                        <button class="btn-primary" id="btn-import"
-                            style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;"
-                            onclick="triggerImport()">
-                            Import Database
-                        </button>
-
+                        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">Export Database</button>
+                        <button class="btn-primary" id="btn-import" style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;" onclick="triggerImport()">Import Database</button>
                         <input type="file" id="db-upload" accept=".db" style="display: none;">
                     </div>
-
                 </div>
-
                 <div style="flex: 1; min-width: 300px; max-width: 500px;">
-                    
                     <div class="card">
                         <h3>Receipt Design</h3>
                         <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize your bill header and footer details.</p>
@@ -407,9 +384,7 @@
                         </div>
                         <button class="btn-primary" onclick="saveReceiptSettings()">Save Design</button>
                     </div>
-
                 </div>
-
             </div>
         </section>
 
@@ -419,17 +394,14 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                 <h3>Edit Item</h3>
-                <button onclick="document.getElementById('edit-product-form').style.display='none'"
-                    style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                <button onclick="document.getElementById('edit-product-form').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
             </div>
             <div class="form-grid">
                 <input type="hidden" id="edit-code">
                 <input type="hidden" id="edit-single-batch-id">
-                
                 <input type="text" id="edit-barcode" placeholder="Barcode" disabled style="background: #e2e8f0;">
                 <input type="text" id="edit-trade-name" placeholder="Trade Name">
                 <input type="text" id="edit-generic-name" placeholder="Generic Name">
-                
                 <input type="text" id="edit-company" placeholder="Company">
                 <input type="number" id="edit-price" placeholder="Price (LKR)">
                 <select id="edit-category">
@@ -437,19 +409,43 @@
                     <option value="Drug">Drug</option>
                     <option value="Other">Other</option>
                 </select>
-
                 <div id="edit-single-batch-group" style="display: contents;">
                      <input type="number" id="edit-qty" placeholder="Quantity">
                      <input type="date" id="edit-expiry">
                 </div>
-
                 <div id="edit-multi-batch-msg" style="display: none; align-items: center; color: var(--warning); grid-column: span 2;">
                    <span class="material-icons-round" style="font-size: 16px; margin-right: 5px;">info</span>
                    Multiple batches detected. Please use 'Batches' button to update Qty/Expiry.
                 </div>
-
                 <div style="grid-column: span 2;">
                     <button onclick="saveEdit()" class="btn-primary" style="background-color: var(--warning); color: #000; width: 100%;">Update Item</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-purchase-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
+                <h3>Edit Invoice Details</h3>
+                <button onclick="document.getElementById('edit-purchase-modal').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+            </div>
+            <div class="form-grid">
+                <input type="hidden" id="edit-pur-id">
+                <input type="text" id="edit-pur-supplier" placeholder="Supplier Name">
+                <input type="text" id="edit-pur-invoice" placeholder="Invoice Number">
+                <input type="number" id="edit-pur-amount" placeholder="Amount (LKR)">
+                <div style="display:flex; flex-direction:column;">
+                    <label style="font-size:12px; color:var(--text-muted);">Purchase Date</label>
+                    <input type="date" id="edit-pur-date">
+                </div>
+                <input type="number" id="edit-pur-due-days" placeholder="Due Days">
+                <select id="edit-pur-status">
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                </select>
+                <div style="grid-column: span 2;">
+                    <button onclick="saveInvoiceEdit()" class="btn-primary" style="background-color: var(--warning); color: #000; width: 100%;">Update Record</button>
                 </div>
             </div>
         </div>
@@ -461,7 +457,6 @@
                 <h3 id="batch-modal-title">Batches</h3>
                 <button onclick="document.getElementById('batches-modal').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted); cursor:pointer;">✕</button>
             </div>
-            
             <table class="styled-table" style="font-size: 13px;">
                 <thead>
                     <tr>
@@ -482,12 +477,10 @@
             <p id="print-address-2">Mudungoda</p>
             <p id="print-contact">Tel: 070-2682795 | 071-7978277</p>
         </div>
-
         <div class="rec-meta">
             <p>Bill No: <span id="rec-bill-no"></span></p>
             <p>Date: <span id="rec-date"></span></p>
         </div>
-
         <table class="rec-table">
             <thead>
                 <tr>
@@ -499,15 +492,8 @@
             </thead>
             <tbody id="rec-items"></tbody>
         </table>
-
-        <div id="rec-discounts"
-            style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;">
-        </div>
-
-        <div class="rec-total" id="rec-total-container">
-            TOTAL: <span id="rec-total"></span>
-        </div>
-
+        <div id="rec-discounts" style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;"></div>
+        <div class="rec-total" id="rec-total-container">TOTAL: <span id="rec-total"></span></div>
         <div class="rec-footer">
             <p id="print-footer-msg">Thank You for your purchase!<br>No Returns on Medicine</p>
         </div>
@@ -523,8 +509,6 @@
 
     <script>
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        
-        // Navigation Helper
         function nav(e, nextId) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -535,5 +519,4 @@
     </script>
 
 </body>
-
 </html>

@@ -1,6 +1,14 @@
 let allPurchases = [];
 let currentFilterStatus = 'all';
 
+// Helper to calculate due date
+function calculateDueDate(purchaseDate, days) {
+    if (!purchaseDate || isNaN(days)) return purchaseDate;
+    const date = new Date(purchaseDate);
+    date.setDate(date.getDate() + parseInt(days));
+    return date.toISOString().split('T')[0];
+}
+
 // 1. Load Purchases
 async function loadPurchases() {
     try {
@@ -15,93 +23,85 @@ async function loadPurchases() {
     }
 }
 
-// 2. Render Logic
+// 2. Render Logic (OPTIMIZED FOR PERFORMANCE)
 function renderPurchases(list) {
     const tbody = document.getElementById('purchase-list');
     if (!tbody) return;
 
-    tbody.innerHTML = '';
-
     if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No invoices found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No invoices found.</td></tr>';
         return;
     }
 
+    let htmlBuffer = '';
+
     list.forEach(inv => {
-        // "Mark Paid" button with non-blocking confirm logic
-        const actionBtn = inv.status === 'Pending'
-            ? `<button id="btn-pay-${inv.id}" onclick="markAsPaid(${inv.id})" style="background:#3b82f6; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Mark Paid</button>`
-            : '<span style="color:#10b981; font-weight:bold;">✔ Paid</span>';
+        // --- FIX: Only show Pay button if Pending; show NOTHING in action column if Paid ---
+        const payBtn = inv.status === 'Pending'
+            ? `<button id="btn-pay-${inv.id}" class="btn-primary" onclick="markAsPaid(${inv.id})" style="background:#3b82f6; padding:4px 8px; font-size:12px;">Pay</button>`
+            : '';
+
+        const actionButtons = `
+            <div style="display:flex; gap:5px; align-items:center;">
+                ${payBtn}
+                <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#f59e0b; color:black;" 
+                    onclick="editInvoice(${inv.id})">Edit</button>
+                <button class="btn-danger" style="padding:4px 8px; font-size:12px;" 
+                    onclick="deleteInvoice(${inv.id}, this)">Delete</button>
+            </div>
+        `;
 
         const badgeColor = inv.status === 'Paid' ? 'background:#dcfce7; color:#166534;' : 'background:#fee2e2; color:#991b1b;';
-        
-        // Format Date dd/mm/yyyy
-        // Ensure we treat the date string as local time to prevent timezone shifts
         const dateObj = new Date(inv.due_date);
         const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : inv.due_date;
 
-        tbody.innerHTML += `
+        htmlBuffer += `
             <tr>
                 <td style="font-family:monospace;">${dateStr}</td>
-                <td>${inv.invoice_number || '-'}</td>
-                <td>${inv.company_name || '-'}</td>
+                <td style="font-weight:bold;">${inv.invoice_number || '-'}</td>
                 <td>${inv.supplier_name || '-'}</td>
                 <td>LKR ${(inv.amount || 0).toFixed(2)}</td>
                 <td><span class="badge" style="${badgeColor} padding:4px 8px; border-radius:10px; font-size:12px;">${inv.status}</span></td>
-                <td>${actionBtn}</td>
+                <td>${actionButtons}</td>
             </tr>
         `;
     });
+
+    tbody.innerHTML = htmlBuffer;
 }
 
-// 3. Add New Invoice (NON-BLOCKING)
+// 3. Add New Invoice
 async function addInvoice() {
     const supEl = document.getElementById('pur-supplier');
-    const comEl = document.getElementById('pur-company');
     const invEl = document.getElementById('pur-invoice');
     const amtEl = document.getElementById('pur-amount');
     const dateEl = document.getElementById('pur-date');
+    const daysEl = document.getElementById('pur-due-days');
     const statEl = document.getElementById('pur-status');
-    const saveBtn = document.querySelector('#purchases .form-grid button.btn-primary');
+    const saveBtn = document.querySelector('#purchases .form-grid button.btn-success');
 
-    if (!invEl || !amtEl) return;
+    const purchase_date = dateEl.value;
+    const due_days = parseInt(daysEl.value || 0);
+    const calculated_due_date = calculateDueDate(purchase_date, due_days);
 
     const payload = {
         supplier_name: supEl.value,
-        company_name: comEl.value,
         invoice_number: invEl.value,
         amount: parseFloat(amtEl.value || 0),
-        due_date: dateEl.value,
+        purchase_date: purchase_date,
+        due_days: due_days,
+        due_date: calculated_due_date,
         status: statEl.value
     };
 
-    const originalText = "Add Record";
-    const originalColor = "";
-
-    const resetButton = () => {
-        setTimeout(() => {
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerText = originalText;
-                saveBtn.style.backgroundColor = originalColor;
-            }
-        }, 1500);
-    };
-
-    if (!payload.invoice_number || payload.amount <= 0) {
-        if (saveBtn) {
-            saveBtn.innerText = "⚠ Invalid Data";
-            saveBtn.style.backgroundColor = "#ef4444";
-            resetButton();
-        }
+    if (!payload.invoice_number || payload.amount <= 0 || !purchase_date) {
+        alert("Please fill Invoice #, Amount, and Purchase Date");
         return;
     }
 
     try {
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
-        }
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Saving...";
 
         const res = await fetch('/api/purchases', {
             method: 'POST',
@@ -110,104 +110,118 @@ async function addInvoice() {
         });
 
         if (res.ok) {
-            if (saveBtn) {
-                saveBtn.innerText = "✔ Saved!";
-                saveBtn.style.backgroundColor = "#059669";
-            }
-
+            saveBtn.innerText = "✔ Saved!";
             setTimeout(() => {
-                // CLEAR ALL FIELDS
-                invEl.value = '';
-                amtEl.value = '';
-                supEl.value = '';
-                comEl.value = '';
-                dateEl.value = '';
-                statEl.value = 'Pending'; // Reset to default
-
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.innerText = originalText;
-                    saveBtn.style.backgroundColor = originalColor;
-                }
+                // Clear fields
+                invEl.value = ''; amtEl.value = ''; supEl.value = ''; 
+                dateEl.value = ''; daysEl.value = '';
+                saveBtn.disabled = false;
+                saveBtn.innerText = "Save Record";
                 
-                // Focus back to first field for rapid entry
-                if(supEl) supEl.focus();
-
+                // --- FIX: Stay open and focus on first field for rapid entry ---
+                supEl.focus();
                 loadPurchases();
             }, 800);
-        } else {
-            if (saveBtn) {
-                saveBtn.innerText = "⚠ Server Error";
-                saveBtn.style.backgroundColor = "#ef4444";
-                resetButton();
-            }
         }
-    } catch (e) {
-        if (saveBtn) {
-            saveBtn.innerText = "⚠ Network Error";
-            saveBtn.style.backgroundColor = "#ef4444";
-            resetButton();
-        }
-    }
+    } catch (e) { console.error(e); }
 }
 
-// 4. Mark Invoice as Paid (Double Click Confirmation)
-async function markAsPaid(id) {
-    const btn = document.getElementById(`btn-pay-${id}`);
+// 4. Update and Delete Logic
+function editInvoice(id) {
+    const inv = allPurchases.find(p => p.id == id);
+    if (!inv) return;
 
-    // First click: Ask for confirmation on the button itself
+    document.getElementById('edit-pur-id').value = inv.id;
+    document.getElementById('edit-pur-supplier').value = inv.supplier_name;
+    document.getElementById('edit-pur-invoice').value = inv.invoice_number;
+    document.getElementById('edit-pur-amount').value = inv.amount;
+    document.getElementById('edit-pur-date').value = inv.purchase_date;
+    document.getElementById('edit-pur-due-days').value = inv.due_days || 0;
+    document.getElementById('edit-pur-status').value = inv.status;
+
+    document.getElementById('edit-purchase-modal').style.display = 'flex';
+}
+
+async function saveInvoiceEdit() {
+    const id = document.getElementById('edit-pur-id').value;
+    const purchase_date = document.getElementById('edit-pur-date').value;
+    const due_days = parseInt(document.getElementById('edit-pur-due-days').value || 0);
+    
+    const payload = {
+        supplier_name: document.getElementById('edit-pur-supplier').value,
+        invoice_number: document.getElementById('edit-pur-invoice').value,
+        amount: parseFloat(document.getElementById('edit-pur-amount').value),
+        purchase_date: purchase_date,
+        due_days: due_days,
+        due_date: calculateDueDate(purchase_date, due_days),
+        status: document.getElementById('edit-pur-status').value
+    };
+
+    try {
+        const res = await fetch(`/api/purchases/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            document.getElementById('edit-purchase-modal').style.display = 'none';
+            loadPurchases();
+        }
+    } catch (e) { alert("Error updating invoice"); }
+}
+
+async function deleteInvoice(id, btn) {
     if (btn.innerText !== "Confirm?") {
+        const originalText = btn.innerText;
         btn.innerText = "Confirm?";
-        btn.style.backgroundColor = "#f59e0b"; // Orange
-        // Reset if not clicked again in 3 seconds
-        setTimeout(() => {
-            if (btn && btn.innerText === "Confirm?") {
-                btn.innerText = "Mark Paid";
-                btn.style.backgroundColor = "#3b82f6";
-            }
-        }, 3000);
+        btn.style.backgroundColor = "#f59e0b";
+        setTimeout(() => { if (btn) { btn.innerText = originalText; btn.style.backgroundColor = ""; } }, 3000);
         return;
     }
 
-    // Second click: Execute
     try {
-        btn.innerText = "Updating...";
-        await fetch(`/api/purchases/${id}/pay`, { method: 'PUT' });
+        await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
         loadPurchases();
-    } catch (e) {
-        console.error(e);
-        btn.innerText = "Error";
-        btn.style.backgroundColor = "#ef4444";
-    }
+    } catch (e) { console.error(e); }
 }
 
-// 5. Filter & Sort Logic
-function filterStatus(status) {
-    currentFilterStatus = status;
-    const btns = document.querySelectorAll('.filter-btns button');
-    btns.forEach(b => {
-        b.style.background = '#f1f5f9';
-        b.style.color = '#333';
-        if (b.innerText === status || (status === 'all' && b.innerText === 'All')) {
-            b.style.background = '#0d9488';
-            b.style.color = '#fff';
-        }
-    });
-    applyPurchasesFilter();
-}
-
+// 5. Filter & Search Logic
+// --- FIX: Added wrapper for search input ---
 function filterPurchases() {
     applyPurchasesFilter();
 }
 
+function filterStatus(status) {
+    currentFilterStatus = status;
+    
+    // --- FIX: Robust UI active class toggle for filters ---
+    const btns = document.querySelectorAll('.pur-filter-btn');
+    btns.forEach(btn => {
+        const btnText = btn.innerText.toLowerCase();
+        const targetStatus = status.toLowerCase();
+        
+        if (btnText === targetStatus || (targetStatus === 'all' && btnText === 'all')) {
+            btn.classList.add('active');
+            btn.style.background = "var(--primary)";
+            btn.style.color = "white";
+        } else {
+            btn.classList.remove('active');
+            btn.style.background = "transparent";
+            btn.style.color = "var(--text-main)";
+        }
+    });
+
+    applyPurchasesFilter();
+}
+
 function applyPurchasesFilter() {
-    const searchInput = document.getElementById('pur-search');
-    const txt = searchInput ? searchInput.value.toLowerCase() : '';
+    // --- FIX: Correct ID targeting for search ---
+    const txt = (document.getElementById('pur-search')?.value || '').toLowerCase();
 
     let filtered = allPurchases.filter(p => {
         const invNum = (p.invoice_number || '').toLowerCase();
-        const comp = (p.company_name || '').toLowerCase();
-        const matchesText = invNum.includes(txt) || comp.includes(txt);
+        const sup = (p.supplier_name || '').toLowerCase();
+        const matchesText = invNum.includes(txt) || sup.includes(txt);
         const matchesStatus = (currentFilterStatus === 'all') || (p.status === currentFilterStatus);
         return matchesText && matchesStatus;
     });
@@ -216,5 +230,18 @@ function applyPurchasesFilter() {
     renderPurchases(filtered);
 }
 
-// Initialize
+async function markAsPaid(id) {
+    const btn = document.getElementById(`btn-pay-${id}`);
+    if (btn.innerText !== "Confirm?") {
+        btn.innerText = "Confirm?";
+        btn.style.backgroundColor = "#f59e0b";
+        setTimeout(() => { if (btn && btn.innerText === "Confirm?") { btn.innerText = "Pay"; btn.style.backgroundColor = "#3b82f6"; } }, 3000);
+        return;
+    }
+    try {
+        await fetch(`/api/purchases/${id}/pay`, { method: 'PUT' });
+        loadPurchases();
+    } catch (e) { console.error(e); }
+}
+
 loadPurchases();

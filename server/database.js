@@ -46,7 +46,6 @@ function createTables() {
             product_code INTEGER
         )`);
 
-        // --- PERFORMANCE INDEXES (CRITICAL FIX) ---
         db.run("CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)");
         db.run("CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)");
         db.run("CREATE INDEX IF NOT EXISTS idx_products_expiry ON products(expiry_date)");
@@ -69,13 +68,15 @@ function createTables() {
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
 
-        // Invoices
+        // Invoices (UPDATED SCHEMA)
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             supplier_name TEXT,
             company_name TEXT,
             invoice_number TEXT,
             amount REAL,
+            purchase_date DATE,
+            due_days INTEGER,
             due_date DATE,
             status TEXT DEFAULT 'Pending'
         )`);
@@ -90,12 +91,15 @@ function createTables() {
                 db.run("UPDATE products SET generic_name = 'Generic' WHERE generic_name IS NULL");
             }
         });
+
+        // Migration for Invoices
+        db.run("ALTER TABLE invoices ADD COLUMN purchase_date DATE", (err) => { });
+        db.run("ALTER TABLE invoices ADD COLUMN due_days INTEGER", (err) => { });
     });
 }
 
 connect();
 
-// Export Proxy
 module.exports = {
     run: (...args) => db.run(...args),
     get: (...args) => db.get(...args),

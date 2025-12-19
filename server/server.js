@@ -14,7 +14,6 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // --- 1. DATABASE MANAGEMENT ROUTES ---
-
 app.get('/api/export-db', (req, res) => {
     const file = db.getDbPath();
     res.download(file, `pharmacy_backup_${new Date().toISOString().split('T')[0]}.db`);
@@ -22,22 +21,14 @@ app.get('/api/export-db', (req, res) => {
 
 app.post('/api/import-db', upload.single('database'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
     const tempPath = req.file.path;
     const targetPath = db.getDbPath();
-
     db.close((err) => {
-        if (err) {
-            console.error("Error closing DB:", err);
-            return res.status(500).json({ error: "Failed to close database for import." });
-        }
+        if (err) return res.status(500).json({ error: "Failed to close database for import." });
         fs.copyFile(tempPath, targetPath, (err) => {
             db.reconnect();
             fs.unlink(tempPath, () => { });
-            if (err) {
-                console.error("Error overwriting DB:", err);
-                return res.status(500).json({ error: "Failed to replace database file." });
-            }
+            if (err) return res.status(500).json({ error: "Failed to replace database file." });
             res.json({ message: "Database Imported Successfully!" });
         });
     });
@@ -53,17 +44,12 @@ app.get('/api/products', (req, res) => {
 
 app.post('/api/products', (req, res) => {
     const { barcode, generic_name, trade_name, price, category, qty, expiry_date, company_name } = req.body;
-
-    // 1. Get or Generate Product Code
     db.get("SELECT product_code FROM products WHERE barcode = ?", [barcode], (err, existingCodeRow) => {
         if (err) return res.status(500).json({ error: err.message });
-
         let finalProductCode;
-
         const proceedToSave = (pCode) => {
             db.get("SELECT id, qty FROM products WHERE barcode = ? AND expiry_date = ?", [barcode, expiry_date], (err, row) => {
                 if (row) {
-                    // Update existing batch
                     db.run("UPDATE products SET qty = qty + ?, company_name = ?, generic_name = ?, trade_name = ? WHERE id = ?",
                         [qty, company_name, generic_name, trade_name, row.id],
                         function (err) {
@@ -72,7 +58,6 @@ app.post('/api/products', (req, res) => {
                         }
                     );
                 } else {
-                    // Insert new batch
                     const sql = `INSERT INTO products (barcode, generic_name, trade_name, price, category, qty, expiry_date, company_name, product_code) 
                                  VALUES (?,?,?,?,?,?,?,?,?)`;
                     db.run(sql, [barcode, generic_name, trade_name, price, category, qty, expiry_date, company_name, pCode], function (err) {
@@ -82,7 +67,6 @@ app.post('/api/products', (req, res) => {
                 }
             });
         };
-
         if (existingCodeRow && existingCodeRow.product_code) {
             finalProductCode = existingCodeRow.product_code;
             proceedToSave(finalProductCode);
@@ -95,13 +79,10 @@ app.post('/api/products', (req, res) => {
     });
 });
 
-// UPDATE Product Details (General Info)
 app.put('/api/products/:code', (req, res) => {
     const { generic_name, trade_name, company_name, price, category } = req.body;
-    const code = req.params.code;
-    db.run(
-        "UPDATE products SET generic_name = ?, trade_name = ?, company_name = ?, price = ?, category = ? WHERE product_code = ?",
-        [generic_name, trade_name, company_name, price, category, code],
+    db.run("UPDATE products SET generic_name = ?, trade_name = ?, company_name = ?, price = ?, category = ? WHERE product_code = ?",
+        [generic_name, trade_name, company_name, price, category, req.params.code],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ message: "Product updated", changes: this.changes });
@@ -109,38 +90,27 @@ app.put('/api/products/:code', (req, res) => {
     );
 });
 
-// Delete Product (All batches)
 app.delete('/api/products/:code', (req, res) => {
-    const code = req.params.code;
-    db.run("DELETE FROM products WHERE product_code = ?", [code], function (err) {
+    db.run("DELETE FROM products WHERE product_code = ?", [req.params.code], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Product deleted", changes: this.changes });
     });
 });
 
-// --- NEW: BATCH MANAGEMENT ROUTES ---
-
 app.put('/api/batch/:id', (req, res) => {
     const { qty, expiry_date } = req.body;
-    const id = req.params.id;
-    db.run(
-        "UPDATE products SET qty = ?, expiry_date = ? WHERE id = ?",
-        [qty, expiry_date, id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: "Batch updated", changes: this.changes });
-        }
-    );
+    db.run("UPDATE products SET qty = ?, expiry_date = ? WHERE id = ?", [qty, expiry_date, req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Batch updated", changes: this.changes });
+    });
 });
 
 app.delete('/api/batch/:id', (req, res) => {
-    const id = req.params.id;
-    db.run("DELETE FROM products WHERE id = ?", [id], function (err) {
+    db.run("DELETE FROM products WHERE id = ?", [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "Batch deleted", changes: this.changes });
     });
 });
-
 
 // --- 3. SALES ROUTES ---
 app.post('/api/sale', (req, res) => {
@@ -148,46 +118,33 @@ app.post('/api/sale', (req, res) => {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
-
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
-
         let errorOccurred = false;
-
         const processItem = (index) => {
             if (index >= items.length) {
                 if (!errorOccurred) {
                     db.run('INSERT INTO sales (total_amount, payment_method, date) VALUES (?,?,?)', [total, method, localDateStr], function (err) {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            return res.status(500).json({ error: err.message });
-                        }
-
+                        if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
                         const saleId = this.lastID;
                         const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)");
                         items.forEach(item => {
-                            const savedName = item.trade_name || item.name || "Unknown";
-                            itemStmt.run(saleId, savedName, item.buyQty, item.price);
+                            itemStmt.run(saleId, item.trade_name || item.name || "Unknown", item.buyQty, item.price);
                         });
                         itemStmt.finalize();
-
                         db.run('COMMIT');
                         res.json({ message: "Sale Complete", saleId: saleId });
                     });
                 }
                 return;
             }
-
             const item = items[index];
             let qtyNeeded = item.buyQty;
-
             db.all("SELECT id, qty FROM products WHERE barcode = ? AND qty > 0 ORDER BY expiry_date ASC", [item.barcode], (err, batches) => {
                 if (err || !batches || batches.length === 0) {
-                    errorOccurred = true;
-                    db.run('ROLLBACK');
+                    errorOccurred = true; db.run('ROLLBACK');
                     return res.status(400).json({ error: `Out of stock for ${item.trade_name || item.name}` });
                 }
-
                 const updates = [];
                 for (let batch of batches) {
                     if (qtyNeeded <= 0) break;
@@ -195,50 +152,33 @@ app.post('/api/sale', (req, res) => {
                     updates.push({ id: batch.id, newQty: batch.qty - deduct });
                     qtyNeeded -= deduct;
                 }
-
                 if (qtyNeeded > 0) {
-                    errorOccurred = true;
-                    db.run('ROLLBACK');
+                    errorOccurred = true; db.run('ROLLBACK');
                     return res.status(400).json({ error: `Not enough stock for ${item.trade_name || item.name}` });
                 }
-
                 const runUpdates = (uIndex) => {
-                    if (uIndex >= updates.length) {
-                        processItem(index + 1);
-                        return;
-                    }
+                    if (uIndex >= updates.length) { processItem(index + 1); return; }
                     db.run("UPDATE products SET qty = ? WHERE id = ?", [updates[uIndex].newQty, updates[uIndex].id], (err) => {
-                        if (err) {
-                            errorOccurred = true;
-                            db.run('ROLLBACK');
-                            return res.status(500).json({ error: err.message });
-                        }
+                        if (err) { errorOccurred = true; db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
                         runUpdates(uIndex + 1);
                     });
                 };
                 runUpdates(0);
             });
         };
-
         processItem(0);
     });
 });
 
 app.get('/api/sales', (req, res) => {
-    const sql = `
-        SELECT s.*, GROUP_CONCAT(si.product_name || ' (' || si.qty || ')', ', ') as items_list
-        FROM sales s
-        LEFT JOIN sale_items si ON s.id = si.sale_id
-        GROUP BY s.id
-        ORDER BY s.date DESC
-    `;
-    db.all(sql, [], (err, rows) => {
+    db.all(`SELECT s.*, GROUP_CONCAT(si.product_name || ' (' || si.qty || ')', ', ') as items_list FROM sales s 
+            LEFT JOIN sale_items si ON s.id = si.sale_id GROUP BY s.id ORDER BY s.date DESC`, [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
     });
 });
 
-// --- 4. PURCHASE ROUTES ---
+// --- 4. PURCHASE ROUTES (SYNCED) ---
 app.get('/api/purchases', (req, res) => {
     db.all("SELECT * FROM invoices ORDER BY due_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
@@ -247,12 +187,27 @@ app.get('/api/purchases', (req, res) => {
 });
 
 app.post('/api/purchases', (req, res) => {
-    const { supplier_name, company_name, invoice_number, amount, due_date, status } = req.body;
-    const sql = `INSERT INTO invoices (supplier_name, company_name, invoice_number, amount, due_date, status) 
-                 VALUES (?,?,?,?,?,?)`;
-    db.run(sql, [supplier_name, company_name, invoice_number, amount, due_date, status], function (err) {
+    const { supplier_name, invoice_number, amount, purchase_date, due_days, due_date, status } = req.body;
+    const sql = `INSERT INTO invoices (supplier_name, invoice_number, amount, purchase_date, due_days, due_date, status) VALUES (?,?,?,?,?,?,?)`;
+    db.run(sql, [supplier_name, invoice_number, amount, purchase_date, due_days, due_date, status], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: "Invoice Added", id: this.lastID });
+    });
+});
+
+app.put('/api/purchases/:id', (req, res) => {
+    const { supplier_name, invoice_number, amount, purchase_date, due_days, due_date, status } = req.body;
+    const sql = `UPDATE invoices SET supplier_name=?, invoice_number=?, amount=?, purchase_date=?, due_days=?, due_date=?, status=? WHERE id=?`;
+    db.run(sql, [supplier_name, invoice_number, amount, purchase_date, due_days, due_date, status, req.params.id], function (err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: "Invoice Updated", changes: this.changes });
+    });
+});
+
+app.delete('/api/purchases/:id', (req, res) => {
+    db.run("DELETE FROM invoices WHERE id = ?", [req.params.id], function (err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: "Invoice Deleted", changes: this.changes });
     });
 });
 
@@ -269,27 +224,16 @@ app.get('/api/dashboard-stats', (req, res) => {
     const lowStockThreshold = parseInt(req.query.minStock) || 10;
     const expiryDays = parseInt(req.query.minExpiryDays) || 90;
     const pendingDays = parseInt(req.query.pendingDays) || 30;
-
     db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')", (err, row) => {
         stats.todaySales = row ? row.total : 0;
-
         db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')", (err, row) => {
             stats.monthlySales = row ? row.total : 0;
-
             db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending' AND due_date <= date('now', '+' || ? || ' days')", [pendingDays], (err, row) => {
                 stats.pendingPayments = row ? row.total : 0;
-
                 db.get("SELECT COUNT(*) as count FROM products", (err, row) => {
                     stats.totalProducts = row ? row.count : 0;
-
-                    const alertSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`;
-                    
-                    db.all(alertSql, [lowStockThreshold, expiryDays], (err, alerts) => {
-                        stats.alerts = alerts.map(a => ({
-                            ...a,
-                            name: a.trade_name || a.name
-                        }));
-
+                    db.all(`SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`, [lowStockThreshold, expiryDays], (err, alerts) => {
+                        stats.alerts = alerts.map(a => ({ ...a, name: a.trade_name || a.name }));
                         db.all("SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7", (err, chartData) => {
                             stats.chartData = chartData;
                             res.json(stats);
@@ -304,7 +248,5 @@ app.get('/api/dashboard-stats', (req, res) => {
 module.exports = app;
 
 if (require.main === module) {
-    app.listen(3000, () => {
-        console.log('Server running on port 3000');
-    });
+    app.listen(3000, () => { console.log('Server running on port 3000'); });
 }

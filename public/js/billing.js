@@ -1,5 +1,6 @@
 let cart = [];
 let products = [];
+let selectedIndex = -1; // Track highlighted suggestion
 
 // Load products for search (grouped for search efficiency)
 async function fetchProductsForBilling() {
@@ -18,21 +19,79 @@ document.querySelectorAll('.discount-input').forEach(input => {
     });
 });
 
-// Barcode Listener (Original Enter Logic)
+// Barcode Listener (Updated for Navigation and Focus Flow)
 const barcodeInput = document.getElementById('barcode-input');
 const suggestionsList = document.getElementById('suggestions-list');
 
-barcodeInput.addEventListener('keypress', (e) => {
+barcodeInput.addEventListener('keydown', (e) => {
+    const items = suggestionsList.querySelectorAll('.suggestion-item');
+    
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+        updateSuggestionHighlight(items);
+    } 
+    else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, -1);
+        updateSuggestionHighlight(items);
+    } 
+    else if (e.key === 'Enter') {
+        const val = barcodeInput.value.trim();
+        
+        if (selectedIndex > -1 && items[selectedIndex]) {
+            // Select the highlighted suggestion
+            items[selectedIndex].click();
+        } else if (val === "") {
+            // If empty, move to Discount Medicine
+            document.getElementById('disc-medicine').focus();
+        } else {
+            // Normal search logic
+            handleSearch(val.toLowerCase());
+            suggestionsList.style.display = 'none';
+        }
+        selectedIndex = -1;
+    }
+});
+
+function updateSuggestionHighlight(items) {
+    items.forEach((item, index) => {
+        if (index === selectedIndex) {
+            item.classList.add('active'); // Ensure .suggestion-item.active is styled in CSS
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+// NEW: Focus Flow for Discounts and Sale Completion
+document.getElementById('disc-medicine').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        const val = barcodeInput.value.trim().toLowerCase();
-        handleSearch(val);
-        suggestionsList.style.display = 'none';
+        e.preventDefault();
+        document.getElementById('disc-drug').focus();
+    }
+});
+
+document.getElementById('disc-drug').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('disc-other').focus();
+    }
+});
+
+document.getElementById('disc-other').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        processSale(); // Complete Sale on final Enter
     }
 });
 
 // NEW: Search Suggestions Logic
 barcodeInput.addEventListener('input', (e) => {
     const val = e.target.value.toLowerCase().trim();
+    selectedIndex = -1; // Reset selection on input
+
     if (val.length < 1) {
         suggestionsList.style.display = 'none';
         return;
@@ -59,7 +118,7 @@ barcodeInput.addEventListener('input', (e) => {
 
     if (uniqueMatches.length > 0) {
         suggestionsList.innerHTML = '';
-        uniqueMatches.slice(0, 10).forEach(item => { // Limit to 10
+        uniqueMatches.slice(0, 10).forEach((item, index) => { 
             const div = document.createElement('div');
             div.className = 'suggestion-item';
             div.innerHTML = `
@@ -70,6 +129,7 @@ barcodeInput.addEventListener('input', (e) => {
                 addToCart(item);
                 barcodeInput.value = '';
                 suggestionsList.style.display = 'none';
+                selectedIndex = -1;
             };
             suggestionsList.appendChild(div);
         });
@@ -260,7 +320,6 @@ async function processSale() {
                     totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
                 }
 
-                // UPDATED: Bold Trade Name & Increased Font Size
                 recItemsBody.innerHTML += `
                     <tr>
                         <td style="font-size:11px;">
@@ -291,11 +350,12 @@ async function processSale() {
             if (discOther) discOther.value = '';
 
             renderCart();
-            loadDashboard();
+            if (typeof loadDashboard === 'function') loadDashboard();
             fetchProductsForBilling();
 
             btn.innerHTML = originalText;
             btn.disabled = false;
+            barcodeInput.focus();
         } else {
             showBtnError("⚠ Error: " + (result.error || "Failed"));
             btn.disabled = false;

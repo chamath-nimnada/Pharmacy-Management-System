@@ -343,8 +343,14 @@ select:focus {
     font-size: 14px;
 }
 
-.suggestion-item:hover {
-    background: #f8fafc;
+.suggestion-item:hover, .suggestion-item.active {
+    background: #f0fdfa;
+    color: var(--primary-dark);
+}
+
+.suggestion-item.active {
+    border-left: 4px solid var(--primary);
+    padding-left: 16px; /* Adjust for border */
 }
 
 .suggestion-item:last-child {

@@ -112,9 +112,9 @@ app.delete('/api/batch/:id', (req, res) => {
     });
 });
 
-// --- 3. SALES ROUTES (UPDATED) ---
+// --- 3. SALES ROUTES ---
 app.post('/api/sale', (req, res) => {
-    const { items, total, method, patientName } = req.body; // Received patientName
+    const { items, total, method, patientName } = req.body;
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
@@ -124,7 +124,6 @@ app.post('/api/sale', (req, res) => {
         const processItem = (index) => {
             if (index >= items.length) {
                 if (!errorOccurred) {
-                    // Added patient_name to INSERT
                     db.run('INSERT INTO sales (total_amount, payment_method, date, patient_name) VALUES (?,?,?,?)', [total, method, localDateStr, patientName], function (err) {
                         if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
                         const saleId = this.lastID;
@@ -176,6 +175,18 @@ app.get('/api/sales', (req, res) => {
             LEFT JOIN sale_items si ON s.id = si.sale_id GROUP BY s.id ORDER BY s.date DESC`, [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
+    });
+});
+
+// NEW: Endpoint to get full details of a single sale for re-printing
+app.get('/api/sales/:id', (req, res) => {
+    const saleId = req.params.id;
+    db.get("SELECT * FROM sales WHERE id = ?", [saleId], (err, sale) => {
+        if (err || !sale) return res.status(404).json({ error: "Sale not found" });
+        db.all("SELECT * FROM sale_items WHERE sale_id = ?", [saleId], (err, items) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ...sale, items });
+        });
     });
 });
 

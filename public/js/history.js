@@ -1,81 +1,103 @@
 let allSales = [];
 
-// 1. Fetch Sales Data
 async function loadHistory() {
     try {
         const res = await fetch('/api/sales');
         const data = await res.json();
         allSales = data.data;
         renderHistory(allSales);
-
-        // Reset filters
-        document.getElementById('history-date').value = '';
-        document.getElementById('history-search-id').value = '';
-    } catch (e) {
-        console.error("Error loading history:", e);
-    }
+    } catch (e) { console.error(e); }
 }
 
-// 2. Render Table
 function renderHistory(sales) {
-    const tbody = document.getElementById('history-list');
-    tbody.innerHTML = '';
-
-    if (sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No sales found.</td></tr>';
-        return;
-    }
-
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
     sales.forEach(sale => {
-        // Parse date
-        const dateObj = new Date(sale.date);
-        const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString();
-
-        // Products Display (Using the new aggregated column)
-        const productsDisplay = sale.items_list ?
-            `<span style="font-size:13px; color:#334155;">${sale.items_list}</span>` :
-            '<span style="color:#94a3b8;">-</span>';
-
-        tbody.innerHTML += `
+        list.innerHTML += `
             <tr>
-                <td>${dateStr}</td>
-                <td style="font-family:monospace; font-weight:bold;">#${sale.id}</td>
-                <td>${productsDisplay}</td>
+                <td>${sale.date}</td>
+                <td style="font-weight:bold;">#${sale.id}</td>
+                <td style="font-size:12px; max-width: 300px;">${sale.items_list || 'No items'}</td>
+                <td>${sale.payment_method}</td>
+                <td style="font-weight:bold;">LKR ${parseFloat(sale.total_amount).toFixed(2)}</td>
                 <td>
-                    <span class="badge" style="background: #eff6ff; color: #2563eb;">
-                        ${sale.payment_method}
-                    </span>
+                    <button class="btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="reprintSale(${sale.id})">
+                        <span class="material-icons-round" style="font-size: 14px; vertical-align: middle;">print</span> Print
+                    </button>
                 </td>
-                <td style="font-weight:bold;">LKR ${sale.total_amount.toFixed(2)}</td>
             </tr>
         `;
     });
 }
 
-// 3. Filter by Date & ID
 function filterHistory() {
-    const inputDate = document.getElementById('history-date').value; // Returns YYYY-MM-DD
-    const searchId = document.getElementById('history-search-id').value.trim().toLowerCase();
+    const searchId = document.getElementById('history-search-id').value.toLowerCase();
+    const filterDate = document.getElementById('history-date').value;
 
     const filtered = allSales.filter(sale => {
-        // Filter 1: Date (if selected)
-        let dateMatch = true;
-        if (inputDate) {
-            const saleDate = new Date(sale.date).toISOString().split('T')[0];
-            dateMatch = (saleDate === inputDate);
-        }
-
-        // Filter 2: Sale ID (if typed)
-        let idMatch = true;
-        if (searchId) {
-            idMatch = sale.id.toString().includes(searchId);
-        }
-
-        return dateMatch && idMatch;
+        const matchesId = sale.id.toString().includes(searchId);
+        const matchesDate = !filterDate || sale.date.includes(filterDate);
+        return matchesId && matchesDate;
     });
 
     renderHistory(filtered);
 }
 
-// Initialize
-loadHistory();
+// Function to reprint an old sale bill
+async function reprintSale(saleId) {
+    try {
+        const res = await fetch(`/api/sales/${saleId}`);
+        const sale = await res.json();
+
+        if (sale.error) {
+            alert("Error fetching sale details: " + sale.error);
+            return;
+        }
+
+        // 1. Populate Receipt Metadata
+        document.getElementById('rec-bill-no').innerText = sale.id;
+        document.getElementById('rec-date').innerText = sale.date;
+
+        // 2. Handle Patient Name
+        const patientCont = document.getElementById('rec-patient-container');
+        if (sale.patient_name) {
+            patientCont.style.display = 'block';
+            document.getElementById('rec-patient-name').innerText = sale.patient_name;
+        } else {
+            patientCont.style.display = 'none';
+        }
+
+        // 3. Populate Items
+        const recItemsBody = document.getElementById('rec-items');
+        recItemsBody.innerHTML = '';
+
+        // Clear discount summary for reprints as percentages aren't stored
+        document.getElementById('rec-discounts').innerText = "";
+
+        sale.items.forEach(item => {
+            const lineTotal = item.price * item.qty;
+            recItemsBody.innerHTML += `
+                <tr>
+                    <td style="font-size:11px;">
+                        <span style="font-weight:bold; font-size:12px;">${item.product_name}</span>
+                    </td>
+                    <td style="font-size:11px;">${parseFloat(item.price).toFixed(2)}</td>
+                    <td style="font-size:11px; text-align:center;">${item.qty}</td>
+                    <td style="text-align:right; font-size:11px;">${lineTotal.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        // 4. Set Total
+        document.getElementById('rec-total').innerText = `LKR ${parseFloat(sale.total_amount).toFixed(2)}`;
+
+        // 5. Trigger Print
+        window.print();
+    } catch (err) {
+        console.error("Print Error:", err);
+        alert("Failed to reprint bill.");
+    }
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', loadHistory);

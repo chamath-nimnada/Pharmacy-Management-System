@@ -50,12 +50,13 @@ function createTables() {
         db.run("CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)");
         db.run("CREATE INDEX IF NOT EXISTS idx_products_expiry ON products(expiry_date)");
 
-        // Sales
+        // Sales (UPDATED TO INCLUDE patient_name)
         db.run(`CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
             total_amount REAL,
-            payment_method TEXT
+            payment_method TEXT,
+            patient_name TEXT
         )`);
 
         // Sale Items
@@ -68,7 +69,7 @@ function createTables() {
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
 
-        // Invoices (UPDATED SCHEMA)
+        // Invoices
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             supplier_name TEXT,
@@ -85,16 +86,18 @@ function createTables() {
         db.run("ALTER TABLE products ADD COLUMN company_name TEXT", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN generic_name TEXT", (err) => { });
-        db.run("ALTER TABLE products ADD COLUMN trade_name TEXT", (err) => { 
-            if(!err) {
+        db.run("ALTER TABLE products ADD COLUMN trade_name TEXT", (err) => {
+            if (!err) {
                 db.run("UPDATE products SET trade_name = name WHERE trade_name IS NULL AND name IS NOT NULL");
                 db.run("UPDATE products SET generic_name = 'Generic' WHERE generic_name IS NULL");
             }
         });
 
-        // Migration for Invoices
         db.run("ALTER TABLE invoices ADD COLUMN purchase_date DATE", (err) => { });
         db.run("ALTER TABLE invoices ADD COLUMN due_days INTEGER", (err) => { });
+
+        // NEW: Migration for Sales Patient Name
+        db.run("ALTER TABLE sales ADD COLUMN patient_name TEXT", (err) => { });
     });
 }
 

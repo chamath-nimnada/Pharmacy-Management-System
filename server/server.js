@@ -112,9 +112,9 @@ app.delete('/api/batch/:id', (req, res) => {
     });
 });
 
-// --- 3. SALES ROUTES ---
+// --- 3. SALES ROUTES (UPDATED) ---
 app.post('/api/sale', (req, res) => {
-    const { items, total, method } = req.body;
+    const { items, total, method, patientName } = req.body; // Received patientName
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
@@ -124,7 +124,8 @@ app.post('/api/sale', (req, res) => {
         const processItem = (index) => {
             if (index >= items.length) {
                 if (!errorOccurred) {
-                    db.run('INSERT INTO sales (total_amount, payment_method, date) VALUES (?,?,?)', [total, method, localDateStr], function (err) {
+                    // Added patient_name to INSERT
+                    db.run('INSERT INTO sales (total_amount, payment_method, date, patient_name) VALUES (?,?,?,?)', [total, method, localDateStr, patientName], function (err) {
                         if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
                         const saleId = this.lastID;
                         const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)");
@@ -178,7 +179,7 @@ app.get('/api/sales', (req, res) => {
     });
 });
 
-// --- 4. PURCHASE ROUTES (SYNCED) ---
+// --- 4. PURCHASE ROUTES ---
 app.get('/api/purchases', (req, res) => {
     db.all("SELECT * FROM invoices ORDER BY due_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });

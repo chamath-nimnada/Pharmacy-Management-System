@@ -167,6 +167,11 @@
                             <option value="Cash">💵 Cash</option>
                             <option value="Card">💳 Card</option>
                         </select>
+
+                        <label style="display:block; margin-bottom:8px; font-weight:500;">Patient Name
+                            (Optional)</label>
+                        <input type="text" id="patient-name" placeholder="Enter Patient Name"
+                            style="margin-bottom: 20px;">
                     </div>
 
                     <div>
@@ -521,6 +526,7 @@
         <div class="rec-meta">
             <p>Bill No: <span id="rec-bill-no"></span></p>
             <p>Date: <span id="rec-date"></span></p>
+            <p id="rec-patient-container" style="display:none;">Patient: <span id="rec-patient-name"></span></p>
         </div>
         <table class="rec-table">
             <thead>

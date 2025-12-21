@@ -19,7 +19,7 @@ document.querySelectorAll('.discount-input').forEach(input => {
     });
 });
 
-// Barcode Listener (Updated for Navigation and Focus Flow)
+// Barcode Listener
 const barcodeInput = document.getElementById('barcode-input');
 const suggestionsList = document.getElementById('suggestions-list');
 
@@ -57,7 +57,7 @@ barcodeInput.addEventListener('keydown', (e) => {
 function updateSuggestionHighlight(items) {
     items.forEach((item, index) => {
         if (index === selectedIndex) {
-            item.classList.add('active'); // Ensure .suggestion-item.active is styled in CSS
+            item.classList.add('active');
             item.scrollIntoView({ block: 'nearest' });
         } else {
             item.classList.remove('active');
@@ -65,7 +65,7 @@ function updateSuggestionHighlight(items) {
     });
 }
 
-// NEW: Focus Flow for Discounts and Sale Completion
+// NEW: Focus Flow for Discounts, Patient Name, and Sale Completion
 document.getElementById('disc-medicine').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -80,14 +80,23 @@ document.getElementById('disc-drug').addEventListener('keydown', (e) => {
     }
 });
 
+// UPDATED: Navigation from Other Discount to Patient Name
 document.getElementById('disc-other').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        processSale(); // Complete Sale on final Enter
+        document.getElementById('patient-name').focus();
     }
 });
 
-// NEW: Search Suggestions Logic
+// NEW: Complete sale on Enter in Patient Name field
+document.getElementById('patient-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        processSale();
+    }
+});
+
+// Search Suggestions Logic
 barcodeInput.addEventListener('input', (e) => {
     const val = e.target.value.toLowerCase().trim();
     selectedIndex = -1; // Reset selection on input
@@ -220,7 +229,6 @@ function getDiscountForItem(category) {
     return 0;
 }
 
-// Function to handle Enter key in Qty field to return to search
 function handleQtyKey(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -299,6 +307,7 @@ async function processSale() {
     if (cart.length === 0) return showBtnError("⚠ Cart is Empty!");
 
     const method = document.getElementById('payment-method').value;
+    const patientName = document.getElementById('patient-name').value.trim(); // Capture patient name
     const total = parseFloat(document.getElementById('grand-total').innerText.replace('LKR ', ''));
     const subTotal = parseFloat(document.getElementById('sub-total').innerText.replace('LKR ', ''));
 
@@ -309,7 +318,7 @@ async function processSale() {
         const res = await fetch('/api/sale', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: cart, total, method })
+            body: JSON.stringify({ items: cart, total, method, patientName }) // Send patientName to server
         });
 
         const result = await res.json();
@@ -317,6 +326,15 @@ async function processSale() {
         if (result.saleId) {
             document.getElementById('rec-bill-no').innerText = result.saleId;
             document.getElementById('rec-date').innerText = new Date().toLocaleString('en-GB');
+
+            // NEW: Display Patient Name on Receipt if provided
+            const patientCont = document.getElementById('rec-patient-container');
+            if (patientName) {
+                patientCont.style.display = 'block';
+                document.getElementById('rec-patient-name').innerText = patientName;
+            } else {
+                patientCont.style.display = 'none';
+            }
 
             const recItemsBody = document.getElementById('rec-items');
             recItemsBody.innerHTML = '';
@@ -365,6 +383,7 @@ async function processSale() {
             window.print();
 
             cart = [];
+            document.getElementById('patient-name').value = ''; // Clear patient name
             const discMed = document.getElementById('disc-medicine');
             const discDrug = document.getElementById('disc-drug');
             const discOther = document.getElementById('disc-other');

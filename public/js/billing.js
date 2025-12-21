@@ -25,20 +25,20 @@ const suggestionsList = document.getElementById('suggestions-list');
 
 barcodeInput.addEventListener('keydown', (e) => {
     const items = suggestionsList.querySelectorAll('.suggestion-item');
-    
+
     if (e.key === 'ArrowDown') {
         e.preventDefault();
         selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
         updateSuggestionHighlight(items);
-    } 
+    }
     else if (e.key === 'ArrowUp') {
         e.preventDefault();
         selectedIndex = Math.max(selectedIndex - 1, -1);
         updateSuggestionHighlight(items);
-    } 
+    }
     else if (e.key === 'Enter') {
         const val = barcodeInput.value.trim();
-        
+
         if (selectedIndex > -1 && items[selectedIndex]) {
             // Select the highlighted suggestion
             items[selectedIndex].click();
@@ -118,7 +118,7 @@ barcodeInput.addEventListener('input', (e) => {
 
     if (uniqueMatches.length > 0) {
         suggestionsList.innerHTML = '';
-        uniqueMatches.slice(0, 10).forEach((item, index) => { 
+        uniqueMatches.slice(0, 10).forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
             div.innerHTML = `
@@ -173,17 +173,31 @@ function handleSearch(val) {
 }
 
 function addToCart(product) {
-    const existing = cart.find(c => c.barcode === product.barcode);
-    if (existing) {
-        existing.buyQty++;
+    const existingIndex = cart.findIndex(c => c.barcode === product.barcode);
+    let targetIndex;
+
+    if (existingIndex > -1) {
+        cart[existingIndex].buyQty++;
+        targetIndex = existingIndex;
     } else {
-        cart.push({ 
-            ...product, 
-            name: product.trade_name || product.name, 
-            buyQty: 1 
+        cart.push({
+            ...product,
+            name: product.trade_name || product.name,
+            buyQty: 1
         });
+        targetIndex = cart.length - 1;
     }
+
     renderCart();
+
+    // Focus the Qty field of the added item
+    setTimeout(() => {
+        const qtyInput = document.getElementById(`qty-input-${targetIndex}`);
+        if (qtyInput) {
+            qtyInput.focus();
+            qtyInput.select();
+        }
+    }, 10);
 }
 
 function removeFromCart(index) {
@@ -204,6 +218,14 @@ function getDiscountForItem(category) {
     if (category === 'Drug') return discDrug;
     if (category === 'Other') return discOther;
     return 0;
+}
+
+// Function to handle Enter key in Qty field to return to search
+function handleQtyKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        barcodeInput.focus();
+    }
 }
 
 function renderCart() {
@@ -237,9 +259,10 @@ function renderCart() {
                 <td style="font-size:12px; color:#666;">${item.category}</td>
                 <td>${priceDisplay}</td>
                 <td>
-                    <input type="number" min="1" value="${item.buyQty}" 
+                    <input type="number" id="qty-input-${index}" min="1" value="${item.buyQty}" 
                     style="width:50px; padding:5px;" 
-                    onchange="updateQty(${index}, this.value)">
+                    onchange="updateQty(${index}, this.value)"
+                    onkeydown="handleQtyKey(event)">
                 </td>
                 <td style="font-weight:bold;">${totalDisplay}</td>
                 <td><button onclick="removeFromCart(${index})" style="color:red; background:none;">✕</button></td>

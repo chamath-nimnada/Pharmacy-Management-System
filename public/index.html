@@ -57,7 +57,8 @@
                     <h2 id="monthly-sales">LKR 0.00</h2>
                 </div>
                 <div class="card" style="border-left: 4px solid var(--danger);">
-                    <h3>Pending Payments <span id="pending-days-label" style="font-size: 12px; color: var(--danger); font-weight: normal;"></span></h3>
+                    <h3>Pending Payments <span id="pending-days-label"
+                            style="font-size: 12px; color: var(--danger); font-weight: normal;"></span></h3>
                     <h2 id="due-current" style="color: var(--danger);">LKR 0.00</h2>
                 </div>
                 <div class="card">
@@ -75,7 +76,8 @@
 
             <div class="stats-grid" style="margin-top: 0; gap: 24px;">
                 <div class="table-container" style="margin-top:0;">
-                    <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                    <div
+                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
                         <span class="material-icons-round" style="color:var(--warning)">inventory_2</span>
                         <h3 style="margin:0; color:var(--text-main); font-size:16px;">Low Stock Alerts</h3>
                     </div>
@@ -92,7 +94,8 @@
                 </div>
 
                 <div class="table-container" style="margin-top:0;">
-                    <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
+                    <div
+                        style="padding: 20px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
                         <span class="material-icons-round" style="color:var(--danger)">event_busy</span>
                         <h3 style="margin:0; color:var(--text-main); font-size:16px;">Expiring Soon</h3>
                     </div>
@@ -116,7 +119,8 @@
                 <div class="billing-left">
                     <div class="search-bar">
                         <span class="material-icons-round">qr_code_scanner</span>
-                        <input type="text" id="barcode-input" placeholder="Scan Barcode, Trade Name, or Generic..." autofocus autocomplete="off">
+                        <input type="text" id="barcode-input" placeholder="Scan Barcode, Trade Name, or Generic..."
+                            autofocus autocomplete="off">
                         <div id="suggestions-list" class="suggestions-dropdown"></div>
                     </div>
                     <div class="cart-area">
@@ -142,15 +146,18 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                             <div>
                                 <label style="font-size:12px;">Medicine</label>
-                                <input type="number" id="disc-medicine" class="discount-input" placeholder="0" min="0" max="100">
+                                <input type="number" id="disc-medicine" class="discount-input" placeholder="0" min="0"
+                                    max="100">
                             </div>
                             <div>
                                 <label style="font-size:12px;">Drug</label>
-                                <input type="number" id="disc-drug" class="discount-input" placeholder="0" min="0" max="100">
+                                <input type="number" id="disc-drug" class="discount-input" placeholder="0" min="0"
+                                    max="100">
                             </div>
                             <div>
                                 <label style="font-size:12px;">Other</label>
-                                <input type="number" id="disc-other" class="discount-input" placeholder="0" min="0" max="100">
+                                <input type="number" id="disc-other" class="discount-input" placeholder="0" min="0"
+                                    max="100">
                             </div>
                         </div>
 
@@ -164,7 +171,8 @@
 
                     <div>
                         <div class="summary-row"><span>Subtotal</span><span id="sub-total">0.00</span></div>
-                        <div class="summary-row"><span>Discount</span><span id="disc-total" style="color:var(--danger)">0.00</span></div>
+                        <div class="summary-row"><span>Discount</span><span id="disc-total"
+                                style="color:var(--danger)">0.00</span></div>
                         <div class="summary-row total"><span>Total</span><span id="grand-total">LKR 0.00</span></div>
 
                         <button onclick="processSale()" class="btn-checkout">
@@ -178,20 +186,27 @@
         <section id="inventory" class="view hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1>Inventory</h1>
-                <button class="btn-primary" onclick="document.getElementById('add-product-form').style.display='block'; document.getElementById('inv-barcode').focus();">
-                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add Product
+                <button class="btn-primary"
+                    onclick="document.getElementById('add-product-form').style.display='block'; document.getElementById('inv-barcode').focus();">
+                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add
+                    Product
                 </button>
             </div>
 
-            <div id="add-product-form" class="card form-card" style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
+            <div id="add-product-form" class="card form-card"
+                style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                     <h3>Add New Item</h3>
-                    <button onclick="document.getElementById('add-product-form').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                    <button onclick="document.getElementById('add-product-form').style.display='none'"
+                        style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
-                    <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)" onkeydown="nav(event, 'inv-trade-name')" onblur="checkExistingProduct(this.value)">
-                    <input type="text" id="inv-trade-name" placeholder="Trade Name (e.g. Panadol)" onkeydown="nav(event, 'inv-generic-name')">
-                    <input type="text" id="inv-generic-name" placeholder="Generic Name (e.g. Paracetamol)" onkeydown="nav(event, 'inv-company')">
+                    <input type="text" id="inv-barcode" placeholder="Scan Barcode (Optional)"
+                        onkeydown="nav(event, 'inv-trade-name')" onblur="checkExistingProduct(this.value)">
+                    <input type="text" id="inv-trade-name" placeholder="Trade Name (e.g. Panadol)"
+                        onkeydown="nav(event, 'inv-generic-name')">
+                    <input type="text" id="inv-generic-name" placeholder="Generic Name (e.g. Paracetamol)"
+                        onkeydown="nav(event, 'inv-company')">
                     <input type="text" id="inv-company" placeholder="Company" onkeydown="nav(event, 'inv-price')">
                     <input type="number" id="inv-price" placeholder="Price (LKR)" onkeydown="nav(event, 'inv-qty')">
                     <input type="number" id="inv-qty" placeholder="Quantity" onkeydown="nav(event, 'inv-category')">
@@ -206,9 +221,11 @@
             </div>
 
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div class="search-bar" style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                <div class="search-bar"
+                    style="flex: 1; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="inv-search" placeholder="Search by Name, Barcode, or Company..." onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="inv-search" placeholder="Search by Name, Barcode, or Company..."
+                        onkeyup="filterInventory()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
                 <select id="inv-filter-cat" onchange="filterInventory()" style="width: 200px;">
                     <option value="all">All Categories</option>
@@ -242,25 +259,32 @@
         <section id="purchases" class="view hidden">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1>Purchases & Invoices</h1>
-                <button class="btn-primary" onclick="document.getElementById('add-purchase-form-container').style.display='block'; document.getElementById('pur-supplier').focus();">
-                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add Invoice
+                <button class="btn-primary"
+                    onclick="document.getElementById('add-purchase-form-container').style.display='block'; document.getElementById('pur-supplier').focus();">
+                    <span class="material-icons-round" style="vertical-align: middle; font-size: 18px;">add</span> Add
+                    Invoice
                 </button>
             </div>
 
-            <div id="add-purchase-form-container" class="card form-card" style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
+            <div id="add-purchase-form-container" class="card form-card"
+                style="display:none; border: 1px solid var(--primary); margin-bottom: 20px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                     <h3>Record New Invoice</h3>
-                    <button onclick="document.getElementById('add-purchase-form-container').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                    <button onclick="document.getElementById('add-purchase-form-container').style.display='none'"
+                        style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
                 </div>
                 <div class="form-grid">
-                    <input type="text" id="pur-supplier" placeholder="Supplier Name" onkeydown="nav(event, 'pur-invoice')">
-                    <input type="text" id="pur-invoice" placeholder="Invoice Number" onkeydown="nav(event, 'pur-amount')">
+                    <input type="text" id="pur-supplier" placeholder="Supplier Name"
+                        onkeydown="nav(event, 'pur-invoice')">
+                    <input type="text" id="pur-invoice" placeholder="Invoice Number"
+                        onkeydown="nav(event, 'pur-amount')">
                     <input type="number" id="pur-amount" placeholder="Amount (LKR)" onkeydown="nav(event, 'pur-date')">
                     <div style="display:flex; flex-direction:column;">
                         <label style="font-size:12px; color:var(--text-muted);">Purchase Date</label>
                         <input type="date" id="pur-date" onkeydown="nav(event, 'pur-due-days')">
                     </div>
-                    <input type="number" id="pur-due-days" placeholder="Due Days (e.g. 45)" onkeydown="nav(event, 'pur-status')">
+                    <input type="number" id="pur-due-days" placeholder="Due Days (e.g. 45)"
+                        onkeydown="nav(event, 'pur-status')">
                     <select id="pur-status" onkeydown="if(event.key==='Enter') addInvoice()">
                         <option value="Pending">Pending</option>
                         <option value="Paid">Paid</option>
@@ -268,14 +292,17 @@
                     <button onclick="addInvoice()" class="btn-success">Save Record</button>
                 </div>
             </div>
-            
+
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
-                <div class="search-bar" style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+                <div class="search-bar"
+                    style="width: 300px; display: flex; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="pur-search" placeholder="Search Supplier or Invoice #..." onkeyup="filterPurchases()" style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="pur-search" placeholder="Search Supplier or Invoice #..."
+                        onkeyup="filterPurchases()" style="border: none; box-shadow: none; background: transparent;">
                 </div>
 
-                <div class="filter-btns" style="display: flex; gap: 10px; background: white; padding: 5px; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
+                <div class="filter-btns"
+                    style="display: flex; gap: 10px; background: white; padding: 5px; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
                     <button class="pur-filter-btn active" onclick="filterStatus('all')">All</button>
                     <button class="pur-filter-btn" onclick="filterStatus('Pending')">Pending</button>
                     <button class="pur-filter-btn" onclick="filterStatus('Paid')">Paid</button>
@@ -300,11 +327,13 @@
         </section>
 
         <section id="history" class="view hidden">
-             <h1>Sales History</h1>
-             <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
-                <div class="search-bar" style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
+            <h1>Sales History</h1>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+                <div class="search-bar"
+                    style="display: flex; flex: 1; align-items: center; background: white; padding: 0 15px; border: 1px solid #e2e8f0; border-radius: var(--radius-md);">
                     <span class="material-icons-round" style="color: var(--text-muted);">search</span>
-                    <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()" style="border: none; box-shadow: none; background: transparent;">
+                    <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()"
+                        style="border: none; box-shadow: none; background: transparent;">
                 </div>
                 <input type="date" id="history-date" onchange="filterHistory()" style="width: auto; background: white;">
                 <button class="btn-primary" onclick="loadHistory()" style="padding: 10px 15px;">Refresh</button>
@@ -331,7 +360,8 @@
                 <div style="flex: 1; min-width: 300px; max-width: 500px;">
                     <div class="card" style="margin-bottom: 24px;">
                         <h3>Alert & Dashboard Preferences</h3>
-                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize dashboard low stock, expiry, and payment warnings.</p>
+                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize dashboard low
+                            stock, expiry, and payment warnings.</p>
                         <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 15px;">
                             <div>
                                 <label style="font-size: 12px; font-weight: 500;">Low Stock (Qty)</label>
@@ -351,15 +381,19 @@
                     <div class="card">
                         <h3>Data Management</h3>
                         <p style="color:var(--text-muted); margin-bottom:20px;">Backup your pharmacy data safely.</p>
-                        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">Export Database</button>
-                        <button class="btn-primary" id="btn-import" style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;" onclick="triggerImport()">Import Database</button>
+                        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="exportDB()">Export
+                            Database</button>
+                        <button class="btn-primary" id="btn-import"
+                            style="width:100%; background:white; color:var(--text-main); border:1px solid #e2e8f0;"
+                            onclick="triggerImport()">Import Database</button>
                         <input type="file" id="db-upload" accept=".db" style="display: none;">
                     </div>
                 </div>
                 <div style="flex: 1; min-width: 300px; max-width: 500px;">
                     <div class="card">
                         <h3>Receipt Design</h3>
-                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize your bill header and footer details.</p>
+                        <p style="color:var(--text-muted); margin-bottom:15px; font-size: 13px;">Customize your bill
+                            header and footer details.</p>
                         <div class="form-grid" style="grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px;">
                             <div>
                                 <label style="font-size: 12px; font-weight: 500;">Pharmacy Name</label>
@@ -379,7 +413,8 @@
                             </div>
                             <div>
                                 <label style="font-size: 12px; font-weight: 500;">Footer Message</label>
-                                <input type="text" id="set-rec-footer" placeholder="Ex: Thank You! No Returns on Medicine.">
+                                <input type="text" id="set-rec-footer"
+                                    placeholder="Ex: Thank You! No Returns on Medicine.">
                             </div>
                         </div>
                         <button class="btn-primary" onclick="saveReceiptSettings()">Save Design</button>
@@ -394,7 +429,8 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                 <h3>Edit Item</h3>
-                <button onclick="document.getElementById('edit-product-form').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                <button onclick="document.getElementById('edit-product-form').style.display='none'"
+                    style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
             </div>
             <div class="form-grid">
                 <input type="hidden" id="edit-code">
@@ -410,15 +446,17 @@
                     <option value="Other">Other</option>
                 </select>
                 <div id="edit-single-batch-group" style="display: contents;">
-                     <input type="number" id="edit-qty" placeholder="Quantity">
-                     <input type="date" id="edit-expiry">
+                    <input type="number" id="edit-qty" placeholder="Quantity">
+                    <input type="date" id="edit-expiry">
                 </div>
-                <div id="edit-multi-batch-msg" style="display: none; align-items: center; color: var(--warning); grid-column: span 2;">
-                   <span class="material-icons-round" style="font-size: 16px; margin-right: 5px;">info</span>
-                   Multiple batches detected. Please use 'Batches' button to update Qty/Expiry.
+                <div id="edit-multi-batch-msg"
+                    style="display: none; align-items: center; color: var(--warning); grid-column: span 2;">
+                    <span class="material-icons-round" style="font-size: 16px; margin-right: 5px;">info</span>
+                    Multiple batches detected. Please use 'Batches' button to update Qty/Expiry.
                 </div>
                 <div style="grid-column: span 2;">
-                    <button onclick="saveEdit()" class="btn-primary" style="background-color: var(--warning); color: #000; width: 100%;">Update Item</button>
+                    <button onclick="saveEdit()" class="btn-primary"
+                        style="background-color: var(--warning); color: #000; width: 100%;">Update Item</button>
                 </div>
             </div>
         </div>
@@ -428,7 +466,8 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                 <h3>Edit Invoice Details</h3>
-                <button onclick="document.getElementById('edit-purchase-modal').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
+                <button onclick="document.getElementById('edit-purchase-modal').style.display='none'"
+                    style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
             </div>
             <div class="form-grid">
                 <input type="hidden" id="edit-pur-id">
@@ -445,7 +484,8 @@
                     <option value="Paid">Paid</option>
                 </select>
                 <div style="grid-column: span 2;">
-                    <button onclick="saveInvoiceEdit()" class="btn-primary" style="background-color: var(--warning); color: #000; width: 100%;">Update Record</button>
+                    <button onclick="saveInvoiceEdit()" class="btn-primary"
+                        style="background-color: var(--warning); color: #000; width: 100%;">Update Record</button>
                 </div>
             </div>
         </div>
@@ -455,7 +495,8 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px; align-items: center;">
                 <h3 id="batch-modal-title">Batches</h3>
-                <button onclick="document.getElementById('batches-modal').style.display='none'" style="background:none; font-size: 18px; color: var(--text-muted); cursor:pointer;">✕</button>
+                <button onclick="document.getElementById('batches-modal').style.display='none'"
+                    style="background:none; font-size: 18px; color: var(--text-muted); cursor:pointer;">✕</button>
             </div>
             <table class="styled-table" style="font-size: 13px;">
                 <thead>
@@ -492,7 +533,9 @@
             </thead>
             <tbody id="rec-items"></tbody>
         </table>
-        <div id="rec-discounts" style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;"></div>
+        <div id="rec-discounts"
+            style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;">
+        </div>
         <div class="rec-total" id="rec-total-container">TOTAL: <span id="rec-total"></span></div>
         <div class="rec-footer">
             <p id="print-footer-msg">Thank You for your purchase!<br>No Returns on Medicine</p>
@@ -519,4 +562,5 @@
     </script>
 
 </body>
+
 </html>

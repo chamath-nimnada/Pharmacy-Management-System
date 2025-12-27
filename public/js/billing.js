@@ -40,13 +40,10 @@ barcodeInput.addEventListener('keydown', (e) => {
         const val = barcodeInput.value.trim();
 
         if (selectedIndex > -1 && items[selectedIndex]) {
-            // Select the highlighted suggestion
             items[selectedIndex].click();
         } else if (val === "") {
-            // If empty, move to Discount Medicine
             document.getElementById('disc-medicine').focus();
         } else {
-            // Normal search logic
             handleSearch(val.toLowerCase());
             suggestionsList.style.display = 'none';
         }
@@ -65,7 +62,7 @@ function updateSuggestionHighlight(items) {
     });
 }
 
-// NEW: Focus Flow for Discounts, Patient Name, and Sale Completion
+// Focus Flow for Discounts, Patient Name, and Sale Completion
 document.getElementById('disc-medicine').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -80,7 +77,6 @@ document.getElementById('disc-drug').addEventListener('keydown', (e) => {
     }
 });
 
-// UPDATED: Navigation from Other Discount to Patient Name
 document.getElementById('disc-other').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -88,7 +84,6 @@ document.getElementById('disc-other').addEventListener('keydown', (e) => {
     }
 });
 
-// NEW: Complete sale on Enter in Patient Name field
 document.getElementById('patient-name').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -96,22 +91,22 @@ document.getElementById('patient-name').addEventListener('keydown', (e) => {
     }
 });
 
-// Search Suggestions Logic
+// Search Suggestions Logic (Updated for "Starts With" requirement)
 barcodeInput.addEventListener('input', (e) => {
     const val = e.target.value.toLowerCase().trim();
-    selectedIndex = -1; // Reset selection on input
+    selectedIndex = -1;
 
     if (val.length < 1) {
         suggestionsList.style.display = 'none';
         return;
     }
 
-    // Filter Suggestions
+    // Filter Suggestions using .startsWith() for Trade Name, Generic, and Barcode
     const matches = products.filter(p => {
         const trade = (p.trade_name || p.name || '').toLowerCase();
         const generic = (p.generic_name || '').toLowerCase();
         const barcode = (p.barcode || '').toLowerCase();
-        return trade.includes(val) || generic.includes(val) || barcode.includes(val);
+        return trade.startsWith(val) || generic.startsWith(val) || barcode.startsWith(val);
     });
 
     // Remove Duplicates (by barcode/code) for display
@@ -148,7 +143,6 @@ barcodeInput.addEventListener('input', (e) => {
     }
 });
 
-// Hide suggestions when clicking outside
 document.addEventListener('click', (e) => {
     if (!barcodeInput.contains(e.target) && !suggestionsList.contains(e.target)) {
         suggestionsList.style.display = 'none';
@@ -199,7 +193,6 @@ function addToCart(product) {
 
     renderCart();
 
-    // Focus the Qty field of the added item
     setTimeout(() => {
         const qtyInput = document.getElementById(`qty-input-${targetIndex}`);
         if (qtyInput) {
@@ -307,7 +300,7 @@ async function processSale() {
     if (cart.length === 0) return showBtnError("⚠ Cart is Empty!");
 
     const method = document.getElementById('payment-method').value;
-    const patientName = document.getElementById('patient-name').value.trim(); // Capture patient name
+    const patientName = document.getElementById('patient-name').value.trim();
     const total = parseFloat(document.getElementById('grand-total').innerText.replace('LKR ', ''));
     const subTotal = parseFloat(document.getElementById('sub-total').innerText.replace('LKR ', ''));
 
@@ -318,7 +311,7 @@ async function processSale() {
         const res = await fetch('/api/sale', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: cart, total, method, patientName }) // Send patientName to server
+            body: JSON.stringify({ items: cart, total, method, patientName })
         });
 
         const result = await res.json();
@@ -327,7 +320,6 @@ async function processSale() {
             document.getElementById('rec-bill-no').innerText = result.saleId;
             document.getElementById('rec-date').innerText = new Date().toLocaleString('en-GB');
 
-            // NEW: Display Patient Name on Receipt if provided
             const patientCont = document.getElementById('rec-patient-container');
             if (patientName) {
                 patientCont.style.display = 'block';
@@ -383,7 +375,7 @@ async function processSale() {
             window.print();
 
             cart = [];
-            document.getElementById('patient-name').value = ''; // Clear patient name
+            document.getElementById('patient-name').value = '';
             const discMed = document.getElementById('disc-medicine');
             const discDrug = document.getElementById('disc-drug');
             const discOther = document.getElementById('disc-other');

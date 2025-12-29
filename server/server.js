@@ -127,9 +127,9 @@ app.post('/api/sale', (req, res) => {
                     db.run('INSERT INTO sales (total_amount, payment_method, date, patient_name) VALUES (?,?,?,?)', [total, method, localDateStr, patientName], function (err) {
                         if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
                         const saleId = this.lastID;
-                        const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price) VALUES (?,?,?,?)");
+                        const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price, category) VALUES (?,?,?,?,?)");
                         items.forEach(item => {
-                            itemStmt.run(saleId, item.trade_name || item.name || "Unknown", item.buyQty, item.price);
+                            itemStmt.run(saleId, item.trade_name || item.name || "Unknown", item.buyQty, item.price, item.category);
                         });
                         itemStmt.finalize();
                         db.run('COMMIT');
@@ -178,7 +178,6 @@ app.get('/api/sales', (req, res) => {
     });
 });
 
-// NEW: Endpoint to get full details of a single sale for re-printing
 app.get('/api/sales/:id', (req, res) => {
     const saleId = req.params.id;
     db.get("SELECT * FROM sales WHERE id = ?", [saleId], (err, sale) => {
@@ -187,6 +186,28 @@ app.get('/api/sales/:id', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ...sale, items });
         });
+    });
+});
+
+// NEW: Endpoint for filtered revenue summary
+app.get('/api/sales-summary', (req, res) => {
+    const { date, category } = req.query;
+    let query = `
+        SELECT SUM(si.qty * si.price) as total 
+        FROM sale_items si 
+        JOIN sales s ON si.sale_id = s.id 
+        WHERE date(s.date) = date(?)
+    `;
+    const params = [date];
+
+    if (category && category !== 'all') {
+        query += " AND si.category = ?";
+        params.push(category);
+    }
+
+    db.get(query, params, (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ total: row ? row.total || 0 : 0 });
     });
 });
 

@@ -91,7 +91,7 @@ document.getElementById('patient-name').addEventListener('keydown', (e) => {
     }
 });
 
-// Search Suggestions Logic (Updated for "Starts With" requirement)
+// Search Suggestions Logic
 barcodeInput.addEventListener('input', (e) => {
     const val = e.target.value.toLowerCase().trim();
     selectedIndex = -1;
@@ -101,7 +101,6 @@ barcodeInput.addEventListener('input', (e) => {
         return;
     }
 
-    // Filter Suggestions using .startsWith() for Trade Name, Generic, and Barcode
     const matches = products.filter(p => {
         const trade = (p.trade_name || p.name || '').toLowerCase();
         const generic = (p.generic_name || '').toLowerCase();
@@ -109,7 +108,6 @@ barcodeInput.addEventListener('input', (e) => {
         return trade.startsWith(val) || generic.startsWith(val) || barcode.startsWith(val);
     });
 
-    // Remove Duplicates (by barcode/code) for display
     const uniqueMatches = [];
     const seenCodes = new Set();
     matches.forEach(m => {

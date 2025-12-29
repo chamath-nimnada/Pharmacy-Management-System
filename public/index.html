@@ -339,9 +339,41 @@
                     <input type="text" id="history-search-id" placeholder="Search Sale ID..." onkeyup="filterHistory()"
                         style="border: none; box-shadow: none; background: transparent;">
                 </div>
+
+                <select id="history-payment-method" onchange="filterHistory()" style="width: auto; background: white;">
+                    <option value="all">All Methods</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                </select>
+
                 <input type="date" id="history-date" onchange="filterHistory()" style="width: auto; background: white;">
                 <button class="btn-primary" onclick="loadHistory()" style="padding: 10px 15px;">Refresh</button>
             </div>
+
+            <div class="card" style="margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom:15px; font-size: 16px;">Sales Summary Inquiry</h3>
+                <div style="display:flex; gap:10px; align-items: flex-end;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold;">Date</label>
+                        <input type="date" id="summary-date" style="padding:5px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold;">Category</label>
+                        <select id="summary-category" style="padding:5px;">
+                            <option value="all">All Categories</option>
+                            <option value="Medicine">Medicine</option>
+                            <option value="Drug">Drug</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="getSummaryReport()" style="padding: 8px 15px;">Check</button>
+                </div>
+                <div id="summary-result"
+                    style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary);">
+                    Total: LKR 0.00
+                </div>
+            </div>
+
             <div class="table-container">
                 <table class="styled-table">
                     <thead>

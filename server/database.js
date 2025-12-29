@@ -50,7 +50,7 @@ function createTables() {
         db.run("CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)");
         db.run("CREATE INDEX IF NOT EXISTS idx_products_expiry ON products(expiry_date)");
 
-        // Sales (UPDATED TO INCLUDE patient_name)
+        // Sales
         db.run(`CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -59,13 +59,14 @@ function createTables() {
             patient_name TEXT
         )`);
 
-        // Sale Items
+        // Sale Items (UPDATED TO INCLUDE category)
         db.run(`CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sale_id INTEGER,
             product_name TEXT,
             qty INTEGER,
             price REAL,
+            category TEXT,
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
 
@@ -95,9 +96,10 @@ function createTables() {
 
         db.run("ALTER TABLE invoices ADD COLUMN purchase_date DATE", (err) => { });
         db.run("ALTER TABLE invoices ADD COLUMN due_days INTEGER", (err) => { });
-
-        // NEW: Migration for Sales Patient Name
         db.run("ALTER TABLE sales ADD COLUMN patient_name TEXT", (err) => { });
+
+        // NEW Migration: Category for sale items
+        db.run("ALTER TABLE sale_items ADD COLUMN category TEXT", (err) => { });
     });
 }
 

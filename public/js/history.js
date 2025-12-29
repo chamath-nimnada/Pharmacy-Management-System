@@ -33,11 +33,13 @@ function renderHistory(sales) {
 function filterHistory() {
     const searchId = document.getElementById('history-search-id').value.toLowerCase();
     const filterDate = document.getElementById('history-date').value;
+    const paymentMethod = document.getElementById('history-payment-method').value;
 
     const filtered = allSales.filter(sale => {
         const matchesId = sale.id.toString().includes(searchId);
         const matchesDate = !filterDate || sale.date.includes(filterDate);
-        return matchesId && matchesDate;
+        const matchesMethod = paymentMethod === 'all' || sale.payment_method === paymentMethod;
+        return matchesId && matchesDate && matchesMethod;
     });
 
     renderHistory(filtered);
@@ -99,5 +101,26 @@ async function reprintSale(saleId) {
     }
 }
 
+// Function to get sales report summary
+async function getSummaryReport() {
+    const date = document.getElementById('summary-date').value;
+    const cat = document.getElementById('summary-category').value;
+    if (!date) return alert("Please select a date.");
+
+    try {
+        const res = await fetch(`/api/sales-summary?date=${date}&category=${cat}`);
+        const data = await res.json();
+        document.getElementById('summary-result').innerText = `Total: LKR ${parseFloat(data.total || 0).toFixed(2)}`;
+    } catch (e) {
+        console.error(e);
+        alert("Failed to fetch summary.");
+    }
+}
+
 // Initial load
-document.addEventListener('DOMContentLoaded', loadHistory);
+document.addEventListener('DOMContentLoaded', () => {
+    loadHistory();
+    // Set default date for summary inquiry
+    const sumDate = document.getElementById('summary-date');
+    if (sumDate) sumDate.valueAsDate = new Date();
+});

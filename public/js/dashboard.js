@@ -1,14 +1,15 @@
-let salesChartInstance = null; 
+let salesChartInstance = null;
+let currentDashCategory = 'all';
 
 // Helper to robustly parse dates (YYYY-MM-DD or MM/DD/YYYY)
 function parseDate(dateStr) {
     if (!dateStr) return new Date();
-    
+
     // Check if format is YYYY-MM-DD (Standard HTML5 Input)
     if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return new Date(dateStr);
     }
-    
+
     // Check if format is MM/DD/YYYY (User Manual Format)
     if (dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
         const parts = dateStr.split('/');
@@ -20,6 +21,15 @@ function parseDate(dateStr) {
     return new Date(dateStr);
 }
 
+// Function to handle category changes from the filter pills
+function updateDashCategory(cat, btn) {
+    currentDashCategory = cat;
+    // Update Active UI state
+    document.querySelectorAll('#dashboard .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadDashboard();
+}
+
 async function loadDashboard() {
     try {
         const lowStockPref = localStorage.getItem('pref_lowStock') || 10;
@@ -27,9 +37,10 @@ async function loadDashboard() {
         const pendingPref = localStorage.getItem('pref_pendingDays') || 30;
 
         const pendingLabel = document.getElementById('pending-days-label');
-        if(pendingLabel) pendingLabel.innerText = `(Next ${pendingPref} Days)`;
+        if (pendingLabel) pendingLabel.innerText = `(Next ${pendingPref} Days)`;
 
-        const res = await fetch(`/api/dashboard-stats?minStock=${lowStockPref}&minExpiryDays=${expiryPref}&pendingDays=${pendingPref}`);
+        // Fetch stats including the persistent category state
+        const res = await fetch(`/api/dashboard-stats?minStock=${lowStockPref}&minExpiryDays=${expiryPref}&pendingDays=${pendingPref}&category=${currentDashCategory}`);
         const data = await res.json();
 
         document.getElementById('today-sales').innerText = `LKR ${(data.todaySales || 0).toFixed(2)}`;
@@ -39,7 +50,7 @@ async function loadDashboard() {
 
         const monthName = new Date().toLocaleString('default', { month: 'long' });
         const monthLabel = document.getElementById('monthly-sales-label');
-        if(monthLabel) monthLabel.innerText = `${monthName} Revenue`;
+        if (monthLabel) monthLabel.innerText = `${monthName} Revenue`;
 
         const stockBody = document.querySelector('#stock-table tbody');
         const expiryBody = document.querySelector('#expiry-table tbody');
@@ -48,16 +59,14 @@ async function loadDashboard() {
         expiryBody.innerHTML = '';
 
         data.alerts.forEach(item => {
-            // UPDATED: Use helper to parse date correctly
             const expiryDate = parseDate(item.expiry_date);
             const today = new Date();
-            // Reset time to compare only dates
-            today.setHours(0,0,0,0);
-            expiryDate.setHours(0,0,0,0);
+            today.setHours(0, 0, 0, 0);
+            expiryDate.setHours(0, 0, 0, 0);
 
             const diffTime = expiryDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             const displayName = item.trade_name || item.name;
 
             if (item.qty < parseInt(lowStockPref)) {

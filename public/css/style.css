@@ -301,7 +301,8 @@ select:focus {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     border: 1px solid #e2e8f0;
-    position: relative; /* For suggestions */
+    position: relative;
+    /* For suggestions */
 }
 
 .search-bar .material-icons-round {
@@ -343,14 +344,16 @@ select:focus {
     font-size: 14px;
 }
 
-.suggestion-item:hover, .suggestion-item.active {
+.suggestion-item:hover,
+.suggestion-item.active {
     background: #f0fdfa;
     color: var(--primary-dark);
 }
 
 .suggestion-item.active {
     border-left: 4px solid var(--primary);
-    padding-left: 16px; /* Adjust for border */
+    padding-left: 16px;
+    /* Adjust for border */
 }
 
 .suggestion-item:last-child {
@@ -395,6 +398,42 @@ select:focus {
 
 .summary-row.total span:last-child {
     color: var(--primary-dark);
+}
+
+/* UI/UX Filter Buttons */
+.filter-group {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-surface);
+    padding: 6px;
+    border-radius: var(--radius-md);
+    border: 1px solid #e2e8f0;
+    width: fit-content;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.filter-btn:hover {
+    color: var(--primary);
+    background: #f8fafc;
+}
+
+.filter-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(13, 148, 136, 0.2);
 }
 
 /* Buttons */

@@ -189,7 +189,6 @@ app.get('/api/sales/:id', (req, res) => {
     });
 });
 
-// NEW: Endpoint for filtered revenue summary
 app.get('/api/sales-summary', (req, res) => {
     const { date, category } = req.query;
     let query = `
@@ -257,18 +256,42 @@ app.get('/api/dashboard-stats', (req, res) => {
     const lowStockThreshold = parseInt(req.query.minStock) || 10;
     const expiryDays = parseInt(req.query.minExpiryDays) || 90;
     const pendingDays = parseInt(req.query.pendingDays) || 30;
-    db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')", (err, row) => {
-        stats.todaySales = row ? row.total : 0;
-        db.get("SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')", (err, row) => {
-            stats.monthlySales = row ? row.total : 0;
+    const category = req.query.category || 'all';
+
+    let todaySql, monthlySql, productsSql, alertsSql, chartSql;
+
+    if (category === 'all') {
+        todaySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')";
+        monthlySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')";
+        productsSql = "SELECT COUNT(*) as count FROM products";
+        alertsSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`;
+        chartSql = "SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7";
+    } else {
+        todaySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
+                    WHERE si.category = ? AND s.date >= date('now', 'start of day')`;
+        monthlySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
+                      WHERE si.category = ? AND s.date >= date('now', 'start of month')`;
+        productsSql = "SELECT COUNT(*) as count FROM products WHERE category = ?";
+        alertsSql = `SELECT * FROM products WHERE (qty < ? OR expiry_date < date('now', '+' || ? || ' days')) AND category = ?`;
+        chartSql = `SELECT date(s.date) as date, SUM(si.qty * si.price) as total_amount FROM sale_items si JOIN sales s ON si.sale_id = s.id 
+                    WHERE si.category = ? GROUP BY date(s.date) ORDER BY s.date DESC LIMIT 7`;
+    }
+
+    db.get(todaySql, category === 'all' ? [] : [category], (err, row) => {
+        stats.todaySales = row ? row.total || 0 : 0;
+        db.get(monthlySql, category === 'all' ? [] : [category], (err, row) => {
+            stats.monthlySales = row ? row.total || 0 : 0;
             db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending' AND due_date <= date('now', '+' || ? || ' days')", [pendingDays], (err, row) => {
-                stats.pendingPayments = row ? row.total : 0;
-                db.get("SELECT COUNT(*) as count FROM products", (err, row) => {
-                    stats.totalProducts = row ? row.count : 0;
-                    db.all(`SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`, [lowStockThreshold, expiryDays], (err, alerts) => {
-                        stats.alerts = alerts.map(a => ({ ...a, name: a.trade_name || a.name }));
-                        db.all("SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7", (err, chartData) => {
-                            stats.chartData = chartData;
+                stats.pendingPayments = row ? row.total || 0 : 0;
+                db.get(productsSql, category === 'all' ? [] : [category], (err, row) => {
+                    stats.totalProducts = row ? row.count || 0 : 0;
+
+                    let aParams = category === 'all' ? [lowStockThreshold, expiryDays] : [lowStockThreshold, expiryDays, category];
+                    db.all(alertsSql, aParams, (err, alerts) => {
+                        stats.alerts = alerts ? alerts.map(a => ({ ...a, name: a.trade_name || a.name })) : [];
+
+                        db.all(chartSql, category === 'all' ? [] : [category], (err, chartData) => {
+                            stats.chartData = chartData || [];
                             res.json(stats);
                         });
                     });

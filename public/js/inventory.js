@@ -1,26 +1,37 @@
 let inventoryData = [];
 let currentOpenProductCode = null;
 
+// Helper to ensure the main interface is interactive
+function resetUIState() {
+    const addForm = document.getElementById('add-product-form');
+    if (addForm) {
+        addForm.style.display = 'block';
+        const allInputs = addForm.querySelectorAll('input, select, button');
+        allInputs.forEach(el => el.disabled = false);
+    }
+    // Ensure no buttons are stuck in disabled state
+    document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+}
+
 // 1. Load Inventory from Server
 async function loadInventory() {
     try {
         const res = await fetch('/api/products');
         const data = await res.json();
-
         if (data.data) {
             inventoryData = data.data;
             filterInventory();
-        } else {
-            console.error("No data received from API");
         }
     } catch (error) {
         console.error("Error loading inventory:", error);
         const tbody = document.getElementById('inventory-list');
         if (tbody) tbody.innerHTML = '<tr><td colspan="10">Error connecting to server.</td></tr>';
+    } finally {
+        resetUIState();
     }
 }
 
-// 2. Render Table Rows (OPTIMIZED FOR LARGE DATASETS)
+// 2. Render Table Rows
 function renderInventory(products) {
     const tbody = document.getElementById('inventory-list');
     if (!tbody) return;
@@ -41,57 +52,30 @@ function renderInventory(products) {
     });
 
     let htmlContent = '';
-
     Object.values(grouped).forEach(group => {
         group.batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
         const nearestExpiry = group.batches[0].expiry_date;
         const batchCount = group.batches.length;
-
         const displayName = group.trade_name || group.name;
-        const displayGeneric = group.generic_name || '-';
-
-        let displayBarcode = group.barcode || '';
-        if (displayBarcode.length > 15) {
-            displayBarcode = `${displayBarcode.substring(0, 15)}<span style="color:blue;">...</span>`;
-        } else if (!displayBarcode) {
-            displayBarcode = '<span style="color:#ccc">N/A</span>';
-        }
-
-        let rowStyle = '';
-        if (group.totalQty < 5) rowStyle = 'background: #fff0f0; color: #d63031;';
 
         const dateObj = new Date(nearestExpiry);
         const formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : nearestExpiry;
+        const rowStyle = group.totalQty < 5 ? 'background: #fff0f0; color: #d63031;' : '';
 
-        let actionButtons = '';
-        if (batchCount > 1) {
-            actionButtons = `
-                <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#64748b; color:white; margin-right:5px;" 
-                    onclick="viewBatches('${group.product_code || group.barcode}')">Batches</button>
-                <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#f59e0b; color:black; margin-right:5px;" 
-                    onclick="editProduct('${group.product_code}')">Edit All</button>
-                <button class="btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${group.product_code}', this)">
-                    Delete All
-                </button>
-            `;
-        } else {
-            actionButtons = `
-                <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#f59e0b; color:black; margin-right:5px;" 
-                    onclick="editProduct('${group.product_code}')">Edit</button>
-                <button class="btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${group.product_code}', this)">
-                    Delete
-                </button>
-            `;
-        }
+        let actionButtons = `
+            ${batchCount > 1 ? `<button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#64748b; margin-right:5px;" onclick="viewBatches('${group.product_code || group.barcode}')">Batches</button>` : ''}
+            <button class="btn-primary" style="padding:4px 8px; font-size:12px; background:#f59e0b; color:black; margin-right:5px;" onclick="editProduct('${group.product_code}')">${batchCount > 1 ? 'Edit All' : 'Edit'}</button>
+            <button class="btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${group.product_code}', this)">${batchCount > 1 ? 'Delete All' : 'Delete'}</button>
+        `;
 
         htmlContent += `
             <tr style="${rowStyle}">
                 <td style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
-                <td style="font-family:monospace; font-weight:bold;">${displayBarcode}</td>
-                <td style="font-weight:bold;">${displayName} ${batchCount > 1 ? `<span style="font-size:10px; color:blue;">(${batchCount})</span>` : ''}</td>
-                <td style="color:#64748b;">${displayGeneric}</td>
-                <td style="color:#475569;">${group.company_name || '-'}</td>
-                <td><span class="badge" style="background:#eef2f6; color:#333; padding:4px 8px; border-radius:4px;">${group.category}</span></td>
+                <td style="font-family:monospace; font-weight:bold;">${group.barcode || '-'}</td>
+                <td style="font-weight:bold;">${displayName} ${batchCount > 1 ? `<span style="color:blue;">(${batchCount})</span>` : ''}</td>
+                <td>${group.generic_name || '-'}</td>
+                <td>${group.company_name || '-'}</td>
+                <td><span class="badge" style="background:#eef2f6; color:#333;">${group.category}</span></td>
                 <td>LKR ${parseFloat(group.price).toFixed(2)}</td>
                 <td style="font-weight:bold;">${group.totalQty}</td>
                 <td>${formattedDate}</td>
@@ -99,55 +83,31 @@ function renderInventory(products) {
             </tr>
         `;
     });
-
     tbody.innerHTML = htmlContent;
 }
 
 // 3. Add New Product
 async function addProduct() {
-    const barcodeEl = document.getElementById('inv-barcode');
-    const tradeEl = document.getElementById('inv-trade-name');
-    const genericEl = document.getElementById('inv-generic-name');
-    const companyEl = document.getElementById('inv-company');
-    const priceEl = document.getElementById('inv-price');
-    const qtyEl = document.getElementById('inv-qty');
-    const catEl = document.getElementById('inv-category');
-    const expEl = document.getElementById('inv-expiry');
     const saveBtn = document.querySelector('#add-product-form button.btn-success');
-
-    if (!tradeEl || !saveBtn) return;
-
-    let finalBarcode = barcodeEl.value.trim();
-    if (!finalBarcode) finalBarcode = "SYS-" + Date.now();
+    if (!saveBtn || saveBtn.disabled) return;
 
     const payload = {
-        barcode: finalBarcode,
-        trade_name: tradeEl.value.trim(),
-        generic_name: genericEl.value.trim(),
-        company_name: companyEl.value.trim(),
-        price: parseFloat(priceEl.value || 0),
-        qty: parseInt(qtyEl.value || 0),
-        category: catEl.value,
-        expiry_date: expEl.value
+        barcode: document.getElementById('inv-barcode').value.trim() || "SYS-" + Date.now(),
+        trade_name: document.getElementById('inv-trade-name').value.trim(),
+        generic_name: document.getElementById('inv-generic-name').value.trim(),
+        company_name: document.getElementById('inv-company').value.trim(),
+        price: parseFloat(document.getElementById('inv-price').value || 0),
+        qty: parseInt(document.getElementById('inv-qty').value || 0),
+        category: document.getElementById('inv-category').value,
+        expiry_date: document.getElementById('inv-expiry').value
     };
 
-    const resetButton = (text) => {
-        saveBtn.disabled = false;
-        saveBtn.innerText = text;
-        saveBtn.style.backgroundColor = "";
-    };
+    if (!payload.trade_name) return alert("Missing Trade Name");
 
-    if (!payload.trade_name) {
-        saveBtn.innerText = "⚠ Missing Trade Name";
-        saveBtn.style.backgroundColor = "#ef4444";
-        setTimeout(() => resetButton("Save Item"), 1500);
-        return;
-    }
+    saveBtn.disabled = true;
+    saveBtn.innerText = "Saving...";
 
     try {
-        saveBtn.disabled = true;
-        saveBtn.innerText = "Saving...";
-
         const res = await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -155,30 +115,23 @@ async function addProduct() {
         });
 
         if (res.ok) {
-            saveBtn.innerText = "✔ Saved!";
+            saveBtn.innerText = "Saved!";
             saveBtn.style.backgroundColor = "#059669";
-
             setTimeout(() => {
-                barcodeEl.value = '';
-                tradeEl.value = '';
-                genericEl.value = '';
-                companyEl.value = '';
-                priceEl.value = '';
-                qtyEl.value = '';
-                expEl.value = '';
-                barcodeEl.focus();
-                resetButton("Save Item");
+                document.getElementById('inv-barcode').value = '';
+                document.getElementById('inv-trade-name').value = '';
+                document.getElementById('inv-qty').value = '';
+                document.getElementById('inv-expiry').value = '';
+                saveBtn.innerText = "Save Item";
+                saveBtn.style.backgroundColor = "";
                 loadInventory();
             }, 800);
-        } else {
-            saveBtn.innerText = "⚠ Error Saving";
-            saveBtn.style.backgroundColor = "#ef4444";
-            setTimeout(() => resetButton("Save Item"), 1500);
         }
     } catch (e) {
-        saveBtn.innerText = "⚠ Network Error";
+        saveBtn.innerText = "Error";
         saveBtn.style.backgroundColor = "#ef4444";
-        setTimeout(() => resetButton("Save Item"), 1500);
+    } finally {
+        setTimeout(() => { saveBtn.disabled = false; }, 1000);
     }
 }
 
@@ -194,132 +147,25 @@ function checkExistingProduct(barcode) {
     }
 }
 
-async function deleteProduct(code, btn) {
-    if (btn.innerText !== "Confirm?") {
-        const originalText = btn.innerText;
-        btn.innerText = "Confirm?";
-        btn.style.backgroundColor = "#f59e0b";
-        setTimeout(() => {
-            if (btn && btn.innerText === "Confirm?") {
-                btn.innerText = originalText;
-                btn.style.backgroundColor = "";
-            }
-        }, 3000);
-        return;
-    }
-
-    btn.innerText = "Deleting...";
-    btn.disabled = true;
-    try {
-        const res = await fetch(`/api/products/${code}`, { method: 'DELETE' });
-        if (res.ok) {
-            loadInventory();
-        } else {
-            btn.innerText = "Error";
-            btn.style.backgroundColor = "#ef4444";
-            btn.disabled = false;
-        }
-    } catch (e) {
-        btn.innerText = "Network Error";
-        btn.style.backgroundColor = "#ef4444";
-        btn.disabled = false;
-    }
-}
-
-// 4. Edit Product logic
-function editProduct(code) {
-    const batches = inventoryData.filter(p => p.product_code == code);
-    if (!batches || batches.length === 0) return;
-
-    const product = batches[0];
-    document.getElementById('edit-code').value = code;
-    document.getElementById('edit-barcode').value = product.barcode;
-    document.getElementById('edit-trade-name').value = product.trade_name || product.name;
-    document.getElementById('edit-generic-name').value = product.generic_name || '';
-    document.getElementById('edit-company').value = product.company_name;
-    document.getElementById('edit-price').value = product.price;
-    document.getElementById('edit-category').value = product.category;
-
-    const singleBatchGroup = document.getElementById('edit-single-batch-group');
-    const multiBatchMsg = document.getElementById('edit-multi-batch-msg');
-    const singleBatchIdInput = document.getElementById('edit-single-batch-id');
-
-    if (batches.length === 1) {
-        singleBatchGroup.style.display = 'contents';
-        multiBatchMsg.style.display = 'none';
-        document.getElementById('edit-qty').value = product.qty;
-        document.getElementById('edit-expiry').value = product.expiry_date;
-        singleBatchIdInput.value = product.id;
-    } else {
-        singleBatchGroup.style.display = 'none';
-        multiBatchMsg.style.display = 'flex';
-        singleBatchIdInput.value = '';
-    }
-
-    // Toggle Modal
-    document.getElementById('edit-product-form').style.display = 'flex';
-}
-
-async function saveEdit() {
-    const code = document.getElementById('edit-code').value;
-    const trade_name = document.getElementById('edit-trade-name').value;
-    const generic_name = document.getElementById('edit-generic-name').value;
-    const company = document.getElementById('edit-company').value;
-    const price = document.getElementById('edit-price').value;
-    const category = document.getElementById('edit-category').value;
-
-    const batchId = document.getElementById('edit-single-batch-id').value;
-    const qty = document.getElementById('edit-qty').value;
-    const expiry_date = document.getElementById('edit-expiry').value;
-
-    const btn = document.querySelector('#edit-product-form button.btn-primary');
-    if (!trade_name) return alert("Trade Name is required");
-
-    btn.innerText = "Updating...";
-    btn.disabled = true;
-
-    try {
-        await fetch(`/api/products/${code}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trade_name, generic_name, company_name: company, price, category })
-        });
-
-        if (batchId && qty && expiry_date) {
-            await fetch(`/api/batch/${batchId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ qty: parseInt(qty), expiry_date })
-            });
-        }
-        document.getElementById('edit-product-form').style.display = 'none';
-        loadInventory();
-    } catch (e) {
-        console.error(e);
-        alert("Error updating");
-    } finally {
-        btn.innerText = "Update Item";
-        btn.disabled = false;
-    }
-}
-
-// 6. View Batches
+// 4. Batch Logic
 function viewBatches(code) {
     currentOpenProductCode = code;
     const batches = inventoryData.filter(p => (p.product_code && p.product_code == code) || (!p.product_code && p.barcode === code));
-    if (batches.length === 0) return;
+    if (batches.length === 0) {
+        closeBatchModal();
+        return;
+    }
 
     const tbody = document.getElementById('batch-list-body');
-    tbody.innerHTML = '';
+    let html = '';
     batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
 
     batches.forEach(b => {
-        const dateObj = new Date(b.expiry_date);
-        const formattedDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-GB') : b.expiry_date;
-        tbody.innerHTML += `
+        const formattedDate = new Date(b.expiry_date).toLocaleDateString('en-GB');
+        html += `
             <tr id="batch-row-${b.id}">
-                <td class="batch-date">${formattedDate}</td>
-                <td class="batch-qty" style="font-weight:bold;">${b.qty}</td>
+                <td>${formattedDate}</td>
+                <td style="font-weight:bold;">${b.qty}</td>
                 <td>
                     <button class="btn-sm" style="background:#f59e0b; color:black;" onclick="enableBatchInlineEdit(${b.id}, '${b.qty}', '${b.expiry_date}')">Edit</button>
                     <button class="btn-sm" style="background:#ef4444; color:white;" onclick="deleteBatch(${b.id})">Delete</button>
@@ -328,6 +174,7 @@ function viewBatches(code) {
         `;
     });
 
+    tbody.innerHTML = html;
     document.getElementById('batch-modal-title').innerText = `${batches[0].trade_name || batches[0].name} (Batches)`;
     document.getElementById('batches-modal').style.display = 'flex';
 }
@@ -347,9 +194,9 @@ function enableBatchInlineEdit(id, qty, expiry) {
 }
 
 async function saveBatchInline(id) {
+    const btn = document.getElementById(`btn-batch-save-${id}`);
     const newQty = document.getElementById(`edit-batch-qty-${id}`).value;
     const newExpiry = document.getElementById(`edit-batch-date-${id}`).value;
-    const btn = document.getElementById(`btn-batch-save-${id}`);
 
     if (btn) btn.disabled = true;
 
@@ -361,25 +208,111 @@ async function saveBatchInline(id) {
         });
         if (res.ok) {
             await loadInventory();
-            if (currentOpenProductCode) viewBatches(currentOpenProductCode);
+            viewBatches(currentOpenProductCode);
         }
     } catch (e) {
         console.error(e);
     } finally {
-        if (btn) btn.disabled = false;
+        resetUIState();
     }
 }
 
 async function deleteBatch(id) {
-    if (!confirm("Are you sure you want to delete this batch?")) return;
+    if (!confirm("Are you sure?")) return;
     try {
         const res = await fetch(`/api/batch/${id}`, { method: 'DELETE' });
         if (res.ok) {
             await loadInventory();
-            if (currentOpenProductCode) viewBatches(currentOpenProductCode);
+            viewBatches(currentOpenProductCode);
         }
     } catch (e) {
         console.error(e);
+    } finally {
+        resetUIState();
+    }
+}
+
+// 5. Product Actions
+function editProduct(code) {
+    const batches = inventoryData.filter(p => p.product_code == code);
+    if (batches.length === 0) return;
+
+    const product = batches[0];
+    document.getElementById('edit-code').value = code;
+    document.getElementById('edit-barcode').value = product.barcode;
+    document.getElementById('edit-trade-name').value = product.trade_name || product.name;
+    document.getElementById('edit-generic-name').value = product.generic_name || '';
+    document.getElementById('edit-company').value = product.company_name;
+    document.getElementById('edit-price').value = product.price;
+    document.getElementById('edit-category').value = product.category;
+
+    const isSingle = batches.length === 1;
+    document.getElementById('edit-single-batch-group').style.display = isSingle ? 'contents' : 'none';
+    document.getElementById('edit-multi-batch-msg').style.display = isSingle ? 'none' : 'flex';
+
+    if (isSingle) {
+        document.getElementById('edit-single-batch-id').value = product.id;
+        document.getElementById('edit-qty').value = product.qty;
+        document.getElementById('edit-expiry').value = product.expiry_date;
+    }
+
+    document.getElementById('edit-product-form').style.display = 'flex';
+    document.getElementById('add-product-form').style.display = 'none';
+}
+
+async function saveEdit() {
+    const btn = document.querySelector('#edit-product-form button.btn-primary');
+    const code = document.getElementById('edit-code').value;
+
+    btn.disabled = true;
+    try {
+        await fetch(`/api/products/${code}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                trade_name: document.getElementById('edit-trade-name').value,
+                generic_name: document.getElementById('edit-generic-name').value,
+                company_name: document.getElementById('edit-company').value,
+                price: document.getElementById('edit-price').value,
+                category: document.getElementById('edit-category').value
+            })
+        });
+
+        const batchId = document.getElementById('edit-single-batch-id').value;
+        if (batchId) {
+            await fetch(`/api/batch/${batchId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    qty: parseInt(document.getElementById('edit-qty').value),
+                    expiry_date: document.getElementById('edit-expiry').value
+                })
+            });
+        }
+        closeModals();
+        loadInventory();
+    } catch (e) {
+        alert("Update Error");
+    } finally {
+        resetUIState();
+    }
+}
+
+async function deleteProduct(code, btn) {
+    if (btn.innerText !== "Confirm?") {
+        const originalText = btn.innerText;
+        btn.innerText = "Confirm?";
+        btn.style.backgroundColor = "#f59e0b";
+        setTimeout(() => { if (btn.innerText === "Confirm?") { btn.innerText = originalText; btn.style.backgroundColor = ""; } }, 3000);
+        return;
+    }
+
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/products/${code}`, { method: 'DELETE' });
+        if (res.ok) loadInventory();
+    } catch (e) {
+        btn.disabled = false;
     }
 }
 
@@ -389,14 +322,23 @@ function filterInventory() {
 
     const filtered = inventoryData.filter(item => {
         const matchesSearch = (item.trade_name || item.name || '').toLowerCase().includes(searchText) ||
-            (item.generic_name || '').toLowerCase().includes(searchText) ||
-            (item.barcode || '').toString().toLowerCase().includes(searchText) ||
-            (item.company_name || '').toLowerCase().includes(searchText);
+            (item.barcode || '').toString().toLowerCase().includes(searchText);
         const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
         return matchesSearch && matchesCategory;
     });
 
     renderInventory(filtered);
+}
+
+function closeModals() {
+    document.getElementById('edit-product-form').style.display = 'none';
+    document.getElementById('batches-modal').style.display = 'none';
+    resetUIState();
+}
+
+function closeBatchModal() {
+    document.getElementById('batches-modal').style.display = 'none';
+    resetUIState();
 }
 
 loadInventory();

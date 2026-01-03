@@ -1,6 +1,6 @@
 {
   "name": "pharmacy-management-system",
-  "version": "1.0.0",
+  "version": "5.0.0",
   "description": "A modern POS system for pharmacies",
   "main": "main.js",
   "author": "Chamath Nimnada",

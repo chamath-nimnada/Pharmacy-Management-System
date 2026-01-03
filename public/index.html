@@ -472,7 +472,7 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
                 <h3>Edit Item</h3>
-                <button onclick="document.getElementById('edit-product-form').style.display='none'"
+                <button onclick="closeModals()"
                     style="background:none; font-size: 18px; color: var(--text-muted);">✕</button>
             </div>
             <div class="form-grid">
@@ -538,7 +538,7 @@
         <div class="modal-content">
             <div style="display:flex; justify-content:space-between; margin-bottom: 15px; align-items: center;">
                 <h3 id="batch-modal-title">Batches</h3>
-                <button onclick="document.getElementById('batches-modal').style.display='none'"
+                <button onclick="closeBatchModal()"
                     style="background:none; font-size: 18px; color: var(--text-muted); cursor:pointer;">✕</button>
             </div>
             <table class="styled-table" style="font-size: 13px;">

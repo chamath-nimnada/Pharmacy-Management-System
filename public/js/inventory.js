@@ -1,5 +1,6 @@
 let inventoryData = [];
 let currentOpenProductCode = null;
+let searchDebounceTimer = null;
 
 // Helper to ensure the main interface is interactive
 function resetUIState() {
@@ -9,7 +10,6 @@ function resetUIState() {
         const allInputs = addForm.querySelectorAll('input, select, button');
         allInputs.forEach(el => el.disabled = false);
     }
-    // Ensure no buttons are stuck in disabled state
     document.querySelectorAll('button').forEach(btn => btn.disabled = false);
 }
 
@@ -31,7 +31,7 @@ async function loadInventory() {
     }
 }
 
-// 2. Render Table Rows
+// 2. Render Table Rows (Optimized: Top 50 Limit)
 function renderInventory(products) {
     const tbody = document.getElementById('inventory-list');
     if (!tbody) return;
@@ -52,7 +52,11 @@ function renderInventory(products) {
     });
 
     let htmlContent = '';
-    Object.values(grouped).forEach(group => {
+    const groupsArray = Object.values(grouped);
+    const DISPLAY_LIMIT = 50;
+    const itemsToShow = groupsArray.slice(0, DISPLAY_LIMIT);
+
+    itemsToShow.forEach(group => {
         group.batches.sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date));
         const nearestExpiry = group.batches[0].expiry_date;
         const batchCount = group.batches.length;
@@ -83,7 +87,33 @@ function renderInventory(products) {
             </tr>
         `;
     });
+
+    if (groupsArray.length > DISPLAY_LIMIT) {
+        htmlContent += `
+            <tr>
+                <td colspan="10" style="text-align:center; padding:15px; color:#666; background:#f8fafc; font-style:italic;">
+                    Showing top ${DISPLAY_LIMIT} results of ${groupsArray.length}. Use the search bar to find specific items.
+                </td>
+            </tr>
+        `;
+    }
+
     tbody.innerHTML = htmlContent;
+}
+
+// Helper: Clear Form and Focus Barcode
+function clearAddForm() {
+    document.getElementById('inv-barcode').value = '';
+    document.getElementById('inv-trade-name').value = '';
+    document.getElementById('inv-generic-name').value = '';
+    document.getElementById('inv-company').value = '';
+    document.getElementById('inv-price').value = '';
+    document.getElementById('inv-qty').value = '';
+    document.getElementById('inv-category').value = 'Medicine'; // Reset to default
+    document.getElementById('inv-expiry').value = '';
+
+    // Focus back to barcode for rapid entry
+    document.getElementById('inv-barcode').focus();
 }
 
 // 3. Add New Product
@@ -118,10 +148,9 @@ async function addProduct() {
             saveBtn.innerText = "Saved!";
             saveBtn.style.backgroundColor = "#059669";
             setTimeout(() => {
-                document.getElementById('inv-barcode').value = '';
-                document.getElementById('inv-trade-name').value = '';
-                document.getElementById('inv-qty').value = '';
-                document.getElementById('inv-expiry').value = '';
+                // Use the new helper function
+                clearAddForm();
+
                 saveBtn.innerText = "Save Item";
                 saveBtn.style.backgroundColor = "";
                 loadInventory();
@@ -316,18 +345,23 @@ async function deleteProduct(code, btn) {
     }
 }
 
+// OPTIMIZED: Debounced Filter
 function filterInventory() {
-    const searchText = (document.getElementById('inv-search')?.value || '').toLowerCase();
-    const selectedCategory = document.getElementById('inv-filter-cat')?.value || 'all';
+    clearTimeout(searchDebounceTimer);
 
-    const filtered = inventoryData.filter(item => {
-        const matchesSearch = (item.trade_name || item.name || '').toLowerCase().includes(searchText) ||
-            (item.barcode || '').toString().toLowerCase().includes(searchText);
-        const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
-        return matchesSearch && matchesCategory;
-    });
+    searchDebounceTimer = setTimeout(() => {
+        const searchText = (document.getElementById('inv-search')?.value || '').toLowerCase();
+        const selectedCategory = document.getElementById('inv-filter-cat')?.value || 'all';
 
-    renderInventory(filtered);
+        const filtered = inventoryData.filter(item => {
+            const matchesSearch = (item.trade_name || item.name || '').toLowerCase().includes(searchText) ||
+                (item.barcode || '').toString().toLowerCase().includes(searchText);
+            const matchesCategory = (selectedCategory === 'all') || (item.category === selectedCategory);
+            return matchesSearch && matchesCategory;
+        });
+
+        renderInventory(filtered);
+    }, 300);
 }
 
 function closeModals() {

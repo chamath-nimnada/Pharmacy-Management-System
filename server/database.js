@@ -6,7 +6,7 @@ const { app } = require('electron');
 // --- DETERMINE DATABASE PATH ---
 let dbPath;
 
-if (app.isPackaged) {
+if (app && app.isPackaged) {
     const userDataPath = app.getPath('userData');
     if (!fs.existsSync(userDataPath)) {
         fs.mkdirSync(userDataPath, { recursive: true });
@@ -23,10 +23,22 @@ let db;
 
 function connect() {
     db = new sqlite3.Database(dbPath, (err) => {
-        if (err) console.error("DB Connection Error:", err.message);
-        else console.log('Connected to SQLite database.');
+        if (err) {
+            console.error("DB Connection Error:", err.message);
+        } else {
+            console.log('Connected to SQLite database.');
+
+            // --- CRITICAL PERFORMANCE FIXES ---
+            // 1. Enable WAL mode: Allows simultaneous Read/Write (Fixes "Network Error" on sale)
+            db.run("PRAGMA journal_mode = WAL;", (err) => {
+                if (err) console.error("Failed to enable WAL:", err);
+            });
+            // 2. Synchronous Normal: Faster writes while staying safe
+            db.run("PRAGMA synchronous = NORMAL;");
+
+            createTables();
+        }
     });
-    createTables();
 }
 
 // --- INITIALIZE TABLES ---
@@ -59,7 +71,10 @@ function createTables() {
             patient_name TEXT
         )`);
 
-        // Sale Items (UPDATED TO INCLUDE category)
+        // Index for sorting history quickly
+        db.run("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)");
+
+        // Sale Items
         db.run(`CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sale_id INTEGER,
@@ -69,6 +84,9 @@ function createTables() {
             category TEXT,
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
+
+        // CRITICAL INDEX for History JOIN
+        db.run("CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id)");
 
         // Invoices
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
@@ -97,8 +115,6 @@ function createTables() {
         db.run("ALTER TABLE invoices ADD COLUMN purchase_date DATE", (err) => { });
         db.run("ALTER TABLE invoices ADD COLUMN due_days INTEGER", (err) => { });
         db.run("ALTER TABLE sales ADD COLUMN patient_name TEXT", (err) => { });
-
-        // NEW Migration: Category for sale items
         db.run("ALTER TABLE sale_items ADD COLUMN category TEXT", (err) => { });
     });
 }

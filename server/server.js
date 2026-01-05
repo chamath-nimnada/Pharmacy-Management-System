@@ -36,6 +36,7 @@ app.post('/api/import-db', upload.single('database'), (req, res) => {
 
 // --- 2. INVENTORY ROUTES ---
 app.get('/api/products', (req, res) => {
+    // Optimization: Only fetch what's needed or assume frontend handles 1000 items (filtering logic handles this)
     db.all("SELECT * FROM products ORDER BY expiry_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
@@ -118,61 +119,106 @@ app.post('/api/sale', (req, res) => {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
-    db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        let errorOccurred = false;
-        const processItem = (index) => {
-            if (index >= items.length) {
-                if (!errorOccurred) {
-                    db.run('INSERT INTO sales (total_amount, payment_method, date, patient_name) VALUES (?,?,?,?)', [total, method, localDateStr, patientName], function (err) {
-                        if (err) { db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-                        const saleId = this.lastID;
-                        const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price, category) VALUES (?,?,?,?,?)");
-                        items.forEach(item => {
-                            itemStmt.run(saleId, item.trade_name || item.name || "Unknown", item.buyQty, item.price, item.category);
+
+    // Use try-catch to ensure we don't crash the server silently
+    try {
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            let errorOccurred = false;
+
+            const processItem = (index) => {
+                if (index >= items.length) {
+                    if (!errorOccurred) {
+                        db.run('INSERT INTO sales (total_amount, payment_method, date, patient_name) VALUES (?,?,?,?)',
+                            [total, method, localDateStr, patientName],
+                            function (err) {
+                                if (err) {
+                                    console.error("Sale Insert Error:", err);
+                                    db.run('ROLLBACK');
+                                    return res.status(500).json({ error: err.message });
+                                }
+
+                                const saleId = this.lastID;
+                                const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price, category) VALUES (?,?,?,?,?)");
+
+                                items.forEach(item => {
+                                    const pName = item.trade_name || item.name || "Unknown Item";
+                                    const pQty = item.buyQty || 0;
+                                    const pPrice = item.price || 0;
+                                    const pCat = item.category || 'Other';
+                                    itemStmt.run(saleId, pName, pQty, pPrice, pCat);
+                                });
+
+                                itemStmt.finalize();
+                                db.run('COMMIT');
+                                res.json({ message: "Sale Complete", saleId: saleId });
+                            }
+                        );
+                    }
+                    return;
+                }
+
+                const item = items[index];
+                let qtyNeeded = item.buyQty;
+
+                db.all("SELECT id, qty FROM products WHERE barcode = ? AND qty > 0 ORDER BY expiry_date ASC", [item.barcode], (err, batches) => {
+                    if (err || !batches || batches.length === 0) {
+                        errorOccurred = true;
+                        db.run('ROLLBACK');
+                        return res.status(400).json({ error: `Out of stock: ${item.trade_name || item.name}` });
+                    }
+
+                    const updates = [];
+                    for (let batch of batches) {
+                        if (qtyNeeded <= 0) break;
+                        let deduct = Math.min(qtyNeeded, batch.qty);
+                        updates.push({ id: batch.id, newQty: batch.qty - deduct });
+                        qtyNeeded -= deduct;
+                    }
+
+                    if (qtyNeeded > 0) {
+                        errorOccurred = true;
+                        db.run('ROLLBACK');
+                        return res.status(400).json({ error: `Not enough stock: ${item.trade_name || item.name}` });
+                    }
+
+                    const runUpdates = (uIndex) => {
+                        if (uIndex >= updates.length) { processItem(index + 1); return; }
+
+                        db.run("UPDATE products SET qty = ? WHERE id = ?", [updates[uIndex].newQty, updates[uIndex].id], (err) => {
+                            if (err) {
+                                errorOccurred = true;
+                                db.run('ROLLBACK');
+                                return res.status(500).json({ error: err.message });
+                            }
+                            runUpdates(uIndex + 1);
                         });
-                        itemStmt.finalize();
-                        db.run('COMMIT');
-                        res.json({ message: "Sale Complete", saleId: saleId });
-                    });
-                }
-                return;
-            }
-            const item = items[index];
-            let qtyNeeded = item.buyQty;
-            db.all("SELECT id, qty FROM products WHERE barcode = ? AND qty > 0 ORDER BY expiry_date ASC", [item.barcode], (err, batches) => {
-                if (err || !batches || batches.length === 0) {
-                    errorOccurred = true; db.run('ROLLBACK');
-                    return res.status(400).json({ error: `Out of stock for ${item.trade_name || item.name}` });
-                }
-                const updates = [];
-                for (let batch of batches) {
-                    if (qtyNeeded <= 0) break;
-                    let deduct = Math.min(qtyNeeded, batch.qty);
-                    updates.push({ id: batch.id, newQty: batch.qty - deduct });
-                    qtyNeeded -= deduct;
-                }
-                if (qtyNeeded > 0) {
-                    errorOccurred = true; db.run('ROLLBACK');
-                    return res.status(400).json({ error: `Not enough stock for ${item.trade_name || item.name}` });
-                }
-                const runUpdates = (uIndex) => {
-                    if (uIndex >= updates.length) { processItem(index + 1); return; }
-                    db.run("UPDATE products SET qty = ? WHERE id = ?", [updates[uIndex].newQty, updates[uIndex].id], (err) => {
-                        if (err) { errorOccurred = true; db.run('ROLLBACK'); return res.status(500).json({ error: err.message }); }
-                        runUpdates(uIndex + 1);
-                    });
-                };
-                runUpdates(0);
-            });
-        };
-        processItem(0);
-    });
+                    };
+                    runUpdates(0);
+                });
+            };
+            processItem(0);
+        });
+    } catch (e) {
+        console.error("Server Crash Loop Prevented:", e);
+        res.status(500).json({ error: "Server Transaction Error" });
+    }
 });
 
 app.get('/api/sales', (req, res) => {
-    db.all(`SELECT s.*, GROUP_CONCAT(si.product_name || ' (' || si.qty || ')', ', ') as items_list FROM sales s 
-            LEFT JOIN sale_items si ON s.id = si.sale_id GROUP BY s.id ORDER BY s.date DESC`, [], (err, rows) => {
+    // CRITICAL FIX: Limit results to 200 to prevent crashing the frontend/network
+    // Also use COALESCE to handle potential NULLs in concatenation
+    const query = `
+        SELECT s.id, s.date, s.total_amount, s.payment_method, s.patient_name,
+        GROUP_CONCAT(COALESCE(si.product_name, 'Unknown') || ' (' || COALESCE(si.qty, 0) || ')', ', ') as items_list 
+        FROM sales s 
+        LEFT JOIN sale_items si ON s.id = si.sale_id 
+        GROUP BY s.id 
+        ORDER BY s.date DESC 
+        LIMIT 200
+    `;
+
+    db.all(query, [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
     });

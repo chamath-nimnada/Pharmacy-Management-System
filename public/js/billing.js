@@ -1,6 +1,7 @@
 let cart = [];
 let products = [];
 let selectedIndex = -1; // Track highlighted suggestion
+let searchDebounce = null; // OPTIMIZATION: Debounce timer
 
 // Load products for search (grouped for search efficiency)
 async function fetchProductsForBilling() {
@@ -37,6 +38,9 @@ barcodeInput.addEventListener('keydown', (e) => {
         updateSuggestionHighlight(items);
     }
     else if (e.key === 'Enter') {
+        // Clear any pending debounce when Enter is pressed
+        clearTimeout(searchDebounce);
+
         const val = barcodeInput.value.trim();
 
         if (selectedIndex > -1 && items[selectedIndex]) {
@@ -91,9 +95,12 @@ document.getElementById('patient-name').addEventListener('keydown', (e) => {
     }
 });
 
-// Search Suggestions Logic
+// OPTIMIZED: Debounced Search Suggestions
 barcodeInput.addEventListener('input', (e) => {
     const val = e.target.value.toLowerCase().trim();
+
+    // Clear previous timer
+    clearTimeout(searchDebounce);
     selectedIndex = -1;
 
     if (val.length < 1) {
@@ -101,44 +108,48 @@ barcodeInput.addEventListener('input', (e) => {
         return;
     }
 
-    const matches = products.filter(p => {
-        const trade = (p.trade_name || p.name || '').toLowerCase();
-        const generic = (p.generic_name || '').toLowerCase();
-        const barcode = (p.barcode || '').toLowerCase();
-        return trade.startsWith(val) || generic.startsWith(val) || barcode.startsWith(val);
-    });
-
-    const uniqueMatches = [];
-    const seenCodes = new Set();
-    matches.forEach(m => {
-        const code = m.product_code || m.barcode;
-        if (!seenCodes.has(code)) {
-            seenCodes.add(code);
-            uniqueMatches.push(m);
-        }
-    });
-
-    if (uniqueMatches.length > 0) {
-        suggestionsList.innerHTML = '';
-        uniqueMatches.slice(0, 10).forEach((item, index) => {
-            const div = document.createElement('div');
-            div.className = 'suggestion-item';
-            div.innerHTML = `
-                <span><b>${item.trade_name || item.name}</b> <small>(${item.generic_name || ''})</small></span>
-                <span style="color:#666;">${item.qty} in stock</span>
-            `;
-            div.onclick = () => {
-                addToCart(item);
-                barcodeInput.value = '';
-                suggestionsList.style.display = 'none';
-                selectedIndex = -1;
-            };
-            suggestionsList.appendChild(div);
+    // Wait 150ms before searching to save CPU cycles
+    searchDebounce = setTimeout(() => {
+        const matches = products.filter(p => {
+            const trade = (p.trade_name || p.name || '').toLowerCase();
+            const generic = (p.generic_name || '').toLowerCase();
+            const barcode = (p.barcode || '').toLowerCase();
+            return trade.startsWith(val) || generic.startsWith(val) || barcode.startsWith(val);
         });
-        suggestionsList.style.display = 'block';
-    } else {
-        suggestionsList.style.display = 'none';
-    }
+
+        const uniqueMatches = [];
+        const seenCodes = new Set();
+        matches.forEach(m => {
+            const code = m.product_code || m.barcode;
+            if (!seenCodes.has(code)) {
+                seenCodes.add(code);
+                uniqueMatches.push(m);
+            }
+        });
+
+        if (uniqueMatches.length > 0) {
+            suggestionsList.innerHTML = '';
+            // Limiting to 10 is good, keeping this logic
+            uniqueMatches.slice(0, 10).forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `
+                    <span><b>${item.trade_name || item.name}</b> <small>(${item.generic_name || ''})</small></span>
+                    <span style="color:#666;">${item.qty} in stock</span>
+                `;
+                div.onclick = () => {
+                    addToCart(item);
+                    barcodeInput.value = '';
+                    suggestionsList.style.display = 'none';
+                    selectedIndex = -1;
+                };
+                suggestionsList.appendChild(div);
+            });
+            suggestionsList.style.display = 'block';
+        } else {
+            suggestionsList.style.display = 'none';
+        }
+    }, 150);
 });
 
 document.addEventListener('click', (e) => {

@@ -1,5 +1,6 @@
 let allPurchases = [];
 let currentFilterStatus = 'all';
+let purchaseDebounceTimer = null; // Optimization variable
 
 // Helper to calculate due date
 function calculateDueDate(purchaseDate, days) {
@@ -23,7 +24,7 @@ async function loadPurchases() {
     }
 }
 
-// 2. Render Logic (OPTIMIZED FOR PERFORMANCE)
+// 2. Render Logic (OPTIMIZED: Pagination)
 function renderPurchases(list) {
     const tbody = document.getElementById('purchase-list');
     if (!tbody) return;
@@ -33,10 +34,13 @@ function renderPurchases(list) {
         return;
     }
 
+    // FIX: Limit rendering to top 50 to save CPU
+    const DISPLAY_LIMIT = 50;
+    const itemsToShow = list.slice(0, DISPLAY_LIMIT);
+
     let htmlBuffer = '';
 
-    list.forEach(inv => {
-        // --- FIX: Only show Pay button if Pending; show NOTHING in action column if Paid ---
+    itemsToShow.forEach(inv => {
         const payBtn = inv.status === 'Pending'
             ? `<button id="btn-pay-${inv.id}" class="btn-primary" onclick="markAsPaid(${inv.id})" style="background:#3b82f6; padding:4px 8px; font-size:12px;">Pay</button>`
             : '';
@@ -66,6 +70,16 @@ function renderPurchases(list) {
             </tr>
         `;
     });
+
+    if (list.length > DISPLAY_LIMIT) {
+        htmlBuffer += `
+            <tr>
+                <td colspan="6" style="text-align:center; padding:10px; color:#666; font-style:italic; background:#f8fafc;">
+                    Showing ${DISPLAY_LIMIT} of ${list.length} invoices. Use search to find specific records.
+                </td>
+            </tr>
+        `;
+    }
 
     tbody.innerHTML = htmlBuffer;
 }
@@ -113,12 +127,11 @@ async function addInvoice() {
             saveBtn.innerText = "✔ Saved!";
             setTimeout(() => {
                 // Clear fields
-                invEl.value = ''; amtEl.value = ''; supEl.value = ''; 
+                invEl.value = ''; amtEl.value = ''; supEl.value = '';
                 dateEl.value = ''; daysEl.value = '';
                 saveBtn.disabled = false;
                 saveBtn.innerText = "Save Record";
-                
-                // --- FIX: Stay open and focus on first field for rapid entry ---
+
                 supEl.focus();
                 loadPurchases();
             }, 800);
@@ -146,7 +159,7 @@ async function saveInvoiceEdit() {
     const id = document.getElementById('edit-pur-id').value;
     const purchase_date = document.getElementById('edit-pur-date').value;
     const due_days = parseInt(document.getElementById('edit-pur-due-days').value || 0);
-    
+
     const payload = {
         supplier_name: document.getElementById('edit-pur-supplier').value,
         invoice_number: document.getElementById('edit-pur-invoice').value,
@@ -185,21 +198,22 @@ async function deleteInvoice(id, btn) {
     } catch (e) { console.error(e); }
 }
 
-// 5. Filter & Search Logic
-// --- FIX: Added wrapper for search input ---
+// 5. Filter & Search Logic (OPTIMIZED: Debounce)
 function filterPurchases() {
-    applyPurchasesFilter();
+    clearTimeout(purchaseDebounceTimer);
+    purchaseDebounceTimer = setTimeout(() => {
+        applyPurchasesFilter();
+    }, 250); // 250ms delay
 }
 
 function filterStatus(status) {
     currentFilterStatus = status;
-    
-    // --- FIX: Robust UI active class toggle for filters ---
+
     const btns = document.querySelectorAll('.pur-filter-btn');
     btns.forEach(btn => {
         const btnText = btn.innerText.toLowerCase();
         const targetStatus = status.toLowerCase();
-        
+
         if (btnText === targetStatus || (targetStatus === 'all' && btnText === 'all')) {
             btn.classList.add('active');
             btn.style.background = "var(--primary)";
@@ -215,7 +229,6 @@ function filterStatus(status) {
 }
 
 function applyPurchasesFilter() {
-    // --- FIX: Correct ID targeting for search ---
     const txt = (document.getElementById('pur-search')?.value || '').toLowerCase();
 
     let filtered = allPurchases.filter(p => {

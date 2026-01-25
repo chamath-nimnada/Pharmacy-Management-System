@@ -19,11 +19,12 @@ async function loadHistory() {
 
         const data = await res.json();
 
+        // Check if data.data exists (based on server.js response format)
         if (data && data.data) {
             allSales = data.data;
             renderHistory(allSales);
         } else {
-            throw new Error("Invalid data format received");
+            throw new Error("Invalid data format received from server");
         }
     } catch (e) {
         console.error("History Load Error:", e);
@@ -42,7 +43,6 @@ function renderHistory(sales) {
         return;
     }
 
-    // LIMIT RENDER to 200 items (Matches server limit)
     let htmlBuffer = '';
 
     sales.forEach(sale => {
@@ -53,7 +53,7 @@ function renderHistory(sales) {
             <tr>
                 <td>${sale.date}</td>
                 <td style="font-weight:bold;">#${sale.id}</td>
-                <td style="font-size:12px; max-width: 300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${items}">
+                <td style="font-size:12px; max-width: 300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${items.replace(/"/g, '&quot;')}">
                     ${items}
                 </td>
                 <td>${sale.payment_method}</td>
@@ -73,16 +73,15 @@ function renderHistory(sales) {
 function filterHistory() {
     clearTimeout(searchDebounceTimer);
 
-    // Debounce to prevent lag while typing
     searchDebounceTimer = setTimeout(() => {
         const searchId = (document.getElementById('history-search-id')?.value || '').toLowerCase();
         const filterDate = document.getElementById('history-date')?.value;
         const paymentMethod = document.getElementById('history-payment-method')?.value;
 
         const filtered = allSales.filter(sale => {
-            const idStr = sale.id.toString();
+            const idStr = (sale.id || '').toString();
             const matchesId = idStr.includes(searchId);
-            const matchesDate = !filterDate || sale.date.includes(filterDate);
+            const matchesDate = !filterDate || (sale.date && sale.date.includes(filterDate));
             const matchesMethod = paymentMethod === 'all' || sale.payment_method === paymentMethod;
             return matchesId && matchesDate && matchesMethod;
         });
@@ -118,7 +117,7 @@ async function reprintSale(saleId) {
 
         if (sale.items) {
             sale.items.forEach(item => {
-                const lineTotal = item.price * item.qty;
+                const lineTotal = (parseFloat(item.price) || 0) * (parseInt(item.qty) || 0);
                 recItemsBody.innerHTML += `
                     <tr>
                         <td style="font-size:11px;"><span style="font-weight:bold; font-size:12px;">${item.product_name}</span></td>
@@ -146,7 +145,10 @@ async function getSummaryReport() {
     try {
         const res = await fetch(`/api/sales-summary?date=${date}&category=${cat}`);
         const data = await res.json();
-        document.getElementById('summary-result').innerText = `Total: LKR ${parseFloat(data.total || 0).toFixed(2)}`;
+        const summaryRes = document.getElementById('summary-result');
+        if (summaryRes) {
+            summaryRes.innerText = `Total: LKR ${parseFloat(data.total || 0).toFixed(2)}`;
+        }
     } catch (e) {
         console.error(e);
         alert("Failed to fetch summary.");

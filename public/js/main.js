@@ -11,37 +11,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 1. Visual updates
             links.forEach(l => l.classList.remove('active'));
-            views.forEach(v => v.classList.remove('active'));
+            views.forEach(v => {
+                v.classList.remove('active');
+                v.classList.add('hidden'); // Ensure others are hidden
+            });
 
             link.classList.add('active');
             const target = link.getAttribute('data-target');
-            document.getElementById(target).classList.add('active');
+            const targetView = document.getElementById(target);
+
+            if (targetView) {
+                targetView.classList.add('active');
+                targetView.classList.remove('hidden'); // REMOVE HIDDEN TO SHOW THE TAB
+            }
 
             // 2. AUTO REFRESH DATA Logic
-            // Based on which tab is clicked, reload that data
             switch (target) {
                 case 'dashboard':
-                    loadDashboard();
+                    if (typeof loadDashboard === 'function') loadDashboard();
                     break;
                 case 'inventory':
-                    loadInventory(); // From inventory.js
+                    if (typeof loadInventory === 'function') loadInventory();
                     break;
                 case 'purchases':
-                    loadPurchases(); // From purchases.js
+                    if (typeof loadPurchases === 'function') loadPurchases();
                     break;
                 case 'history':
-                    loadHistory();   // From history.js
+                    if (typeof loadHistory === 'function') loadHistory();
                     break;
                 case 'billing':
-                    // Focus input
                     document.getElementById('barcode-input').focus();
-                    // UPDATED: Refresh product list for search (in case items were added in Inventory tab)
                     if (typeof fetchProductsForBilling === 'function') {
                         fetchProductsForBilling();
                     }
-                    break;
-                case 'settings':
-                    // Settings are mostly static, but you can add reset logic here if needed
                     break;
             }
         });

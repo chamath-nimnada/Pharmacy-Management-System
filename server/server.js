@@ -197,17 +197,38 @@ app.post('/api/sale', (req, res) => {
 });
 
 app.get('/api/sales', (req, res) => {
-    // FIX: Optimized query ensures data is always visible even with returns or missing names
+    const { search, method, date } = req.query;
+    let whereClauses = [];
+    let params = [];
+
+    if (search) {
+        whereClauses.push("(s.id LIKE ? OR s.patient_name LIKE ?)");
+        params.push(`%${search}%`, `%${search}%`);
+    }
+    if (method && method !== 'all') {
+        whereClauses.push("s.payment_method = ?");
+        params.push(method);
+    }
+    if (date) {
+        whereClauses.push("date(s.date) = date(?)");
+        params.push(date);
+    }
+
+    const whereSql = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
+    // Requirement: Limit to 30 by default. If searching or filtering, remove limit to show all matching results.
+    const limitSql = (search || (method && method !== 'all') || date) ? "" : "LIMIT 30";
+
     const query = `
         SELECT s.id, s.date, s.total_amount, s.payment_method, s.patient_name,
         GROUP_CONCAT(COALESCE(si.product_name, 'Unknown') || ' (' || (COALESCE(si.qty, 0) - COALESCE(si.returned_qty, 0)) || ')', ', ') as items_list 
         FROM sales s 
         LEFT JOIN sale_items si ON s.id = si.sale_id 
+        ${whereSql}
         GROUP BY s.id 
         ORDER BY s.date DESC 
-        LIMIT 200
+        ${limitSql}
     `;
-    db.all(query, [], (err, rows) => {
+    db.all(query, params, (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
     });
@@ -247,6 +268,8 @@ app.post('/api/sales/return', (req, res) => {
 
 app.get('/api/sales-summary', (req, res) => {
     const { date, category } = req.query;
+    if (!date) return res.status(400).json({ error: "Date is required" });
+
     let query = `
         SELECT SUM((si.qty - si.returned_qty) * si.price) as total 
         FROM sale_items si 

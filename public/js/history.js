@@ -5,8 +5,13 @@ async function loadHistory() {
     const list = document.getElementById('history-list');
     if (list) list.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Loading history...</td></tr>';
 
+    const search = document.getElementById('history-search-id').value;
+    const method = document.getElementById('history-payment-method').value;
+    const date = document.getElementById('history-date').value;
+
     try {
-        const res = await fetch('/api/sales');
+        // Fetch filtered results from backend to bypass the 30-item limit when searching
+        const res = await fetch(`/api/sales?search=${encodeURIComponent(search)}&method=${method}&date=${date}`);
         const data = await res.json();
         allSales = data.data || [];
         renderHistory(allSales);
@@ -39,6 +44,30 @@ function renderHistory(sales) {
             </td>
         </tr>
     `).join('');
+}
+
+// Function to handle the Sales Summary Inquiry
+async function getSummaryReport() {
+    const date = document.getElementById('summary-date').value;
+    const category = document.getElementById('summary-category').value;
+    const resultDiv = document.getElementById('summary-result');
+
+    if (!date) {
+        alert("Please select a date first.");
+        return;
+    }
+
+    resultDiv.innerText = "Checking...";
+
+    try {
+        const res = await fetch(`/api/sales-summary?date=${date}&category=${category}`);
+        const data = await res.json();
+        const total = parseFloat(data.total) || 0;
+        resultDiv.innerText = `Total: LKR ${total.toFixed(2)}`;
+    } catch (e) {
+        console.error("Summary error:", e);
+        resultDiv.innerText = "Error: Failed to fetch summary.";
+    }
 }
 
 async function openReturnModal(saleId) {
@@ -113,10 +142,9 @@ async function submitReturn() {
     }
 }
 
+// Trigger fresh server-side load on input/change
 function filterHistory() {
-    const searchId = document.getElementById('history-search-id').value.toLowerCase();
-    const filtered = allSales.filter(sale => sale.id.toString().includes(searchId));
-    renderHistory(filtered);
+    loadHistory();
 }
 
 function closeModals() {

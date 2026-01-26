@@ -74,9 +74,9 @@ function renderInventory(products) {
 
         htmlContent += `
             <tr style="${rowStyle}">
-                <td style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
+                <td class="sticky-col col-sticky-1" style="font-family:monospace; color:#64748b;">${group.product_code || '-'}</td>
+                <td class="sticky-col col-sticky-2" style="font-weight:bold;">${displayName} ${batchCount > 1 ? `<span style="color:blue;">(${batchCount})</span>` : ''}</td>
                 <td style="font-family:monospace; font-weight:bold;">${group.barcode || '-'}</td>
-                <td style="font-weight:bold;">${displayName} ${batchCount > 1 ? `<span style="color:blue;">(${batchCount})</span>` : ''}</td>
                 <td>${group.generic_name || '-'}</td>
                 <td>${group.company_name || '-'}</td>
                 <td><span class="badge" style="background:#eef2f6; color:#333;">${group.category}</span></td>

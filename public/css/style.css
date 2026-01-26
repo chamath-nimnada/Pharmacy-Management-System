@@ -194,18 +194,26 @@ h1 {
     color: var(--text-main);
 }
 
-/* --- TABLES --- */
+/* --- TABLES & HORIZONTAL SCROLL --- */
 .table-container {
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
     margin-top: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.table-scroll-container {
+    width: 100%;
+    overflow-x: auto;
 }
 
 .styled-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    /* Required for sticky borders */
+    border-spacing: 0;
 }
 
 .styled-table th {
@@ -216,6 +224,7 @@ h1 {
     font-weight: 600;
     color: var(--text-muted);
     border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
 }
 
 .styled-table td {
@@ -223,10 +232,50 @@ h1 {
     border-bottom: 1px solid #f1f5f9;
     font-size: 14px;
     color: var(--text-main);
+    white-space: nowrap;
+    /* Prevent wrapping for clean horizontal scroll */
 }
 
 .styled-table tr:hover td {
     background: #f8fafc;
+}
+
+/* Sticky Column Implementation */
+.sticky-col {
+    position: sticky;
+    z-index: 5;
+    background-color: inherit;
+    /* Matches row background */
+}
+
+/* Column 1: ID */
+.col-sticky-1 {
+    left: 0;
+    min-width: 100px;
+}
+
+/* Column 2: Trade Name */
+.col-sticky-2 {
+    left: 100px;
+    /* offset by col-1 width */
+    min-width: 250px;
+    border-right: 2px solid #e2e8f0 !important;
+    box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure background is white for sticky cells in body */
+#inventory-list tr {
+    background-color: white;
+}
+
+#inventory-list td.sticky-col {
+    background-color: inherit;
+}
+
+/* Ensure headers stay on top */
+thead th.sticky-col {
+    z-index: 10;
+    background-color: #f8fafc !important;
 }
 
 /* Status Badges */

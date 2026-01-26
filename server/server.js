@@ -36,7 +36,6 @@ app.post('/api/import-db', upload.single('database'), (req, res) => {
 
 // --- 2. INVENTORY ROUTES ---
 app.get('/api/products', (req, res) => {
-    // Optimization: Only fetch what's needed or assume frontend handles 1000 items (filtering logic handles this)
     db.all("SELECT * FROM products ORDER BY expiry_date ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
@@ -113,7 +112,7 @@ app.delete('/api/batch/:id', (req, res) => {
     });
 });
 
-// --- 3. SALES ROUTES ---
+// --- 3. SALES & RETURNS ROUTES ---
 app.post('/api/sale', (req, res) => {
     const { items, total, method, patientName } = req.body;
     const now = new Date();
@@ -132,20 +131,15 @@ app.post('/api/sale', (req, res) => {
                             [total, method, localDateStr, patientName],
                             function (err) {
                                 if (err) {
-                                    console.error("Sale Insert Error:", err);
                                     db.run('ROLLBACK');
                                     return res.status(500).json({ error: err.message });
                                 }
 
                                 const saleId = this.lastID;
-                                const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, qty, price, category) VALUES (?,?,?,?,?)");
+                                const itemStmt = db.prepare("INSERT INTO sale_items (sale_id, product_name, barcode, qty, price, category) VALUES (?,?,?,?,?,?)");
 
                                 items.forEach(item => {
-                                    const pName = item.trade_name || item.name || "Unknown Item";
-                                    const pQty = item.buyQty || 0;
-                                    const pPrice = item.price || 0;
-                                    const pCat = item.category || 'Other';
-                                    itemStmt.run(saleId, pName, pQty, pPrice, pCat);
+                                    itemStmt.run(saleId, item.name, item.barcode, item.buyQty, item.price, item.category);
                                 });
 
                                 itemStmt.finalize();
@@ -164,7 +158,7 @@ app.post('/api/sale', (req, res) => {
                     if (err || !batches || batches.length === 0) {
                         errorOccurred = true;
                         db.run('ROLLBACK');
-                        return res.status(400).json({ error: `Out of stock: ${item.trade_name || item.name}` });
+                        return res.status(400).json({ error: `Out of stock: ${item.name}` });
                     }
 
                     const updates = [];
@@ -178,12 +172,11 @@ app.post('/api/sale', (req, res) => {
                     if (qtyNeeded > 0) {
                         errorOccurred = true;
                         db.run('ROLLBACK');
-                        return res.status(400).json({ error: `Not enough stock: ${item.trade_name || item.name}` });
+                        return res.status(400).json({ error: `Not enough stock: ${item.name}` });
                     }
 
                     const runUpdates = (uIndex) => {
                         if (uIndex >= updates.length) { processItem(index + 1); return; }
-
                         db.run("UPDATE products SET qty = ? WHERE id = ?", [updates[uIndex].newQty, updates[uIndex].id], (err) => {
                             if (err) {
                                 errorOccurred = true;
@@ -199,22 +192,21 @@ app.post('/api/sale', (req, res) => {
             processItem(0);
         });
     } catch (e) {
-        console.error("Server Crash Loop Prevented:", e);
         res.status(500).json({ error: "Server Transaction Error" });
     }
 });
 
 app.get('/api/sales', (req, res) => {
+    // FIX: Optimized query ensures data is always visible even with returns or missing names
     const query = `
         SELECT s.id, s.date, s.total_amount, s.payment_method, s.patient_name,
-        GROUP_CONCAT(COALESCE(si.product_name, 'Unknown') || ' (' || COALESCE(si.qty, 0) || ')', ', ') as items_list 
+        GROUP_CONCAT(COALESCE(si.product_name, 'Unknown') || ' (' || (COALESCE(si.qty, 0) - COALESCE(si.returned_qty, 0)) || ')', ', ') as items_list 
         FROM sales s 
         LEFT JOIN sale_items si ON s.id = si.sale_id 
         GROUP BY s.id 
         ORDER BY s.date DESC 
         LIMIT 200
     `;
-
     db.all(query, [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ data: rows });
@@ -222,12 +214,33 @@ app.get('/api/sales', (req, res) => {
 });
 
 app.get('/api/sales/:id', (req, res) => {
-    const saleId = req.params.id;
-    db.get("SELECT * FROM sales WHERE id = ?", [saleId], (err, sale) => {
+    db.get("SELECT * FROM sales WHERE id = ?", [req.params.id], (err, sale) => {
         if (err || !sale) return res.status(404).json({ error: "Sale not found" });
-        db.all("SELECT * FROM sale_items WHERE sale_id = ?", [saleId], (err, items) => {
+        db.all("SELECT * FROM sale_items WHERE sale_id = ?", [req.params.id], (err, items) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ...sale, items });
+        });
+    });
+});
+
+app.post('/api/sales/return', (req, res) => {
+    const { saleId, items } = req.body; // items: [{itemId, barcode, returnQty, reason}]
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        let errorEncountered = false;
+
+        items.forEach(item => {
+            // 1. Update returned quantity in sale items
+            db.run("UPDATE sale_items SET returned_qty = returned_qty + ? WHERE id = ?", [item.returnQty, item.itemId]);
+            // 2. Log in returns table
+            db.run("INSERT INTO returns (sale_id, sale_item_id, qty, reason) VALUES (?,?,?,?)", [saleId, item.itemId, item.returnQty, item.reason]);
+            // 3. Put stock back into the first available matching product batch
+            db.run("UPDATE products SET qty = qty + ? WHERE id = (SELECT id FROM products WHERE barcode = ? ORDER BY id DESC LIMIT 1)", [item.returnQty, item.barcode]);
+        });
+
+        db.run('COMMIT', (err) => {
+            if (err) return res.status(500).json({ error: "Transaction Commit Failed" });
+            res.json({ message: "Return successful" });
         });
     });
 });
@@ -235,18 +248,16 @@ app.get('/api/sales/:id', (req, res) => {
 app.get('/api/sales-summary', (req, res) => {
     const { date, category } = req.query;
     let query = `
-        SELECT SUM(si.qty * si.price) as total 
+        SELECT SUM((si.qty - si.returned_qty) * si.price) as total 
         FROM sale_items si 
         JOIN sales s ON si.sale_id = s.id 
         WHERE date(s.date) = date(?)
     `;
     const params = [date];
-
     if (category && category !== 'all') {
         query += " AND si.category = ?";
         params.push(category);
     }
-
     db.get(query, params, (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ total: row ? row.total || 0 : 0 });
@@ -303,44 +314,32 @@ app.get('/api/dashboard-stats', (req, res) => {
 
     let todaySql, monthlySql, productsSql, alertsSql, chartSql;
 
-    // Issue-1 Fix: Added LIMIT 15 and prioritized sorting by qty and expiry date
     if (category === 'all') {
-        todaySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')";
-        monthlySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')";
+        todaySql = "SELECT SUM((si.qty - si.returned_qty) * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.date >= date('now', 'start of day')";
+        monthlySql = "SELECT SUM((si.qty - si.returned_qty) * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.date >= date('now', 'start of month')";
         productsSql = "SELECT COUNT(*) as count FROM products";
         alertsSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days') ORDER BY qty ASC, expiry_date ASC LIMIT 15`;
-        chartSql = "SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7";
+        chartSql = "SELECT date(date) as date, total_amount FROM sales ORDER BY date DESC LIMIT 7";
     } else {
-        todaySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
-                    WHERE si.category = ? AND s.date >= date('now', 'start of day')`;
-        monthlySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
-                      WHERE si.category = ? AND s.date >= date('now', 'start of month')`;
+        todaySql = `SELECT SUM((si.qty - si.returned_qty) * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE si.category = ? AND s.date >= date('now', 'start of day')`;
+        monthlySql = `SELECT SUM((si.qty - si.returned_qty) * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE si.category = ? AND s.date >= date('now', 'start of month')`;
         productsSql = "SELECT COUNT(*) as count FROM products WHERE category = ?";
         alertsSql = `SELECT * FROM products WHERE (qty < ? OR expiry_date < date('now', '+' || ? || ' days')) AND category = ? ORDER BY qty ASC, expiry_date ASC LIMIT 15`;
-        chartSql = `SELECT date(s.date) as date, SUM(si.qty * si.price) as total_amount FROM sale_items si JOIN sales s ON si.sale_id = s.id 
-                    WHERE si.category = ? GROUP BY date(s.date) ORDER BY s.date DESC LIMIT 7`;
+        chartSql = `SELECT date(s.date) as date, SUM((si.qty - si.returned_qty) * si.price) as total_amount FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE si.category = ? GROUP BY date(s.date) ORDER BY s.date DESC LIMIT 7`;
     }
 
     db.get(todaySql, category === 'all' ? [] : [category], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
         stats.todaySales = row ? row.total || 0 : 0;
         db.get(monthlySql, category === 'all' ? [] : [category], (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
             stats.monthlySales = row ? row.total || 0 : 0;
             db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending' AND due_date <= date('now', '+' || ? || ' days')", [pendingDays], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
                 stats.pendingPayments = row ? row.total || 0 : 0;
                 db.get(productsSql, category === 'all' ? [] : [category], (err, row) => {
-                    if (err) return res.status(500).json({ error: err.message });
                     stats.totalProducts = row ? row.count || 0 : 0;
-
                     let aParams = category === 'all' ? [lowStockThreshold, expiryDays] : [lowStockThreshold, expiryDays, category];
                     db.all(alertsSql, aParams, (err, alerts) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        stats.alerts = alerts ? alerts.map(a => ({ ...a, name: a.trade_name || a.name })) : [];
-
+                        stats.alerts = alerts || [];
                         db.all(chartSql, category === 'all' ? [] : [category], (err, chartData) => {
-                            if (err) return res.status(500).json({ error: err.message });
                             stats.chartData = chartData || [];
                             res.json(stats);
                         });

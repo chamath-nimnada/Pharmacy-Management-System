@@ -29,11 +29,7 @@ function connect() {
             console.log('Connected to SQLite database.');
 
             // --- CRITICAL PERFORMANCE FIXES ---
-            // 1. Enable WAL mode: Allows simultaneous Read/Write (Fixes "Network Error" on sale)
-            db.run("PRAGMA journal_mode = WAL;", (err) => {
-                if (err) console.error("Failed to enable WAL:", err);
-            });
-            // 2. Synchronous Normal: Faster writes while staying safe
+            db.run("PRAGMA journal_mode = WAL;");
             db.run("PRAGMA synchronous = NORMAL;");
 
             createTables();
@@ -44,7 +40,7 @@ function connect() {
 // --- INITIALIZE TABLES ---
 function createTables() {
     db.serialize(() => {
-        // Products
+        // Products Table
         db.run(`CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode TEXT, 
@@ -62,7 +58,7 @@ function createTables() {
         db.run("CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)");
         db.run("CREATE INDEX IF NOT EXISTS idx_products_expiry ON products(expiry_date)");
 
-        // Sales
+        // Sales Table
         db.run(`CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -71,24 +67,36 @@ function createTables() {
             patient_name TEXT
         )`);
 
-        // Index for sorting history quickly
         db.run("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)");
 
-        // Sale Items
+        // Sale Items Table
         db.run(`CREATE TABLE IF NOT EXISTS sale_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sale_id INTEGER,
             product_name TEXT,
+            barcode TEXT,
             qty INTEGER,
+            returned_qty INTEGER DEFAULT 0,
             price REAL,
             category TEXT,
             FOREIGN KEY(sale_id) REFERENCES sales(id)
         )`);
 
-        // CRITICAL INDEX for History JOIN
         db.run("CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id)");
 
-        // Invoices
+        // Returns Table (New)
+        db.run(`CREATE TABLE IF NOT EXISTS returns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER,
+            sale_item_id INTEGER,
+            qty INTEGER,
+            return_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            reason TEXT,
+            FOREIGN KEY(sale_id) REFERENCES sales(id),
+            FOREIGN KEY(sale_item_id) REFERENCES sale_items(id)
+        )`);
+
+        // Invoices Table
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             supplier_name TEXT,
@@ -101,7 +109,9 @@ function createTables() {
             status TEXT DEFAULT 'Pending'
         )`);
 
-        // --- SAFE MIGRATIONS ---
+        // --- SAFE MIGRATIONS (Runs only if columns are missing) ---
+        db.run("ALTER TABLE sale_items ADD COLUMN returned_qty INTEGER DEFAULT 0", (err) => { });
+        db.run("ALTER TABLE sale_items ADD COLUMN barcode TEXT", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN company_name TEXT", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN product_code INTEGER", (err) => { });
         db.run("ALTER TABLE products ADD COLUMN generic_name TEXT", (err) => { });
@@ -111,7 +121,6 @@ function createTables() {
                 db.run("UPDATE products SET generic_name = 'Generic' WHERE generic_name IS NULL");
             }
         });
-
         db.run("ALTER TABLE invoices ADD COLUMN purchase_date DATE", (err) => { });
         db.run("ALTER TABLE invoices ADD COLUMN due_days INTEGER", (err) => { });
         db.run("ALTER TABLE sales ADD COLUMN patient_name TEXT", (err) => { });

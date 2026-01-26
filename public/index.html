@@ -620,6 +620,22 @@
         }
     </script>
 
+    <div id="return-modal" class="modal-backdrop">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 20px; align-items:center;">
+                <h3>Return Items (Sale #<span id="ret-sale-id-display"></span>)</h3>
+                <button onclick="closeModals()"
+                    style="background:none; font-size: 20px; color: var(--text-muted);">✕</button>
+            </div>
+            <div id="return-items-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+            </div>
+            <div style="text-align: right;">
+                <button class="btn-primary" onclick="submitReturn()" style="background-color: var(--danger);">Confirm
+                    Return</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

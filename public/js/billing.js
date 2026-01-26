@@ -129,7 +129,6 @@ barcodeInput.addEventListener('input', (e) => {
 
         if (uniqueMatches.length > 0) {
             suggestionsList.innerHTML = '';
-            // Limiting to 10 is good, keeping this logic
             uniqueMatches.slice(0, 10).forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item';
@@ -358,8 +357,8 @@ async function processSale() {
                 let totalDisplay = lineTotal.toFixed(2);
 
                 if (discountPct > 0) {
-                    priceDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalPrice.toFixed(2)}</span><br>${discountedPrice.toFixed(2)}`;
-                    totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:line-through; text-decoration-thickness: 0.5px; text-decoration-style: dotted;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
+                    priceDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:underline; text-decoration-thickness: 1px; text-decoration-style: solid;">${originalPrice.toFixed(2)}</span><br>${discountedPrice.toFixed(2)}`;
+                    totalDisplay = `<span class="strike-thin" style="font-size:10px; text-decoration:underline; text-decoration-thickness: 1px; text-decoration-style: solid;">${originalLineTotal.toFixed(2)}</span><br>${lineTotal.toFixed(2)}`;
                 }
 
                 recItemsBody.innerHTML += `
@@ -375,11 +374,11 @@ async function processSale() {
                 `;
             });
 
-            if (total < subTotal) {
-                document.getElementById('rec-total').innerHTML = `<span class="strike-thin" style="font-size:11px; text-decoration:line-through; text-decoration-thickness: 1px; text-decoration-style: dotted;">Rs. ${subTotal.toFixed(2)}</span><br>LKR ${total.toFixed(2)}`;
-            } else {
-                document.getElementById('rec-total').innerText = `LKR ${total.toFixed(2)}`;
-            }
+            // Populate Receipt Summary in requested order: Total Price, Total Discount, Payable Total
+            const totalDiscountAmount = subTotal - total;
+            document.getElementById('rec-subtotal').innerText = "LKR " + subTotal.toFixed(2);
+            document.getElementById('rec-total-discount').innerText = "LKR " + totalDiscountAmount.toFixed(2);
+            document.getElementById('rec-total').innerText = "LKR " + total.toFixed(2);
 
             window.print();
 

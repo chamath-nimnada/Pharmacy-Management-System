@@ -580,10 +580,22 @@
             </thead>
             <tbody id="rec-items"></tbody>
         </table>
-        <div id="rec-discounts"
-            style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace; border-bottom: 1px dashed #000; padding-bottom: 2px;">
+
+        <div id="rec-discounts" style="text-align: right; font-size: 10px; margin-top: 5px; font-family: monospace;">
         </div>
-        <div class="rec-total" id="rec-total-container">TOTAL: <span id="rec-total"></span></div>
+
+        <div id="rec-subtotal-container"
+            style="text-align: right; font-size: 12px; margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">
+            TOTAL PRICE: <span id="rec-subtotal">LKR 0.00</span>
+        </div>
+        <div id="rec-total-discount-container" style="text-align: right; font-size: 12px; margin-top: 2px;">
+            TOTAL DISCOUNT: <span id="rec-total-discount">LKR 0.00</span>
+        </div>
+        <div id="rec-total-container"
+            style="text-align: right; font-size: 14px; font-weight: bold; margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">
+            PAYABLE TOTAL: <span id="rec-total">LKR 0.00</span>
+        </div>
+
         <div class="rec-footer">
             <p id="print-footer-msg">Thank You for your purchase!<br>No Returns on Medicine</p>
         </div>

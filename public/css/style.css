@@ -37,24 +37,19 @@ body {
     overflow: hidden;
 }
 
-/* --- CUSTOM THIN STRIKETHROUGH --- */
+/* --- CUSTOM THIN UNDERLINE (Formerly strikethrough) --- */
 .strike-thin {
     position: relative;
     display: inline-block;
-    color: #999;
+    color: #64748b;
     font-size: 10px;
+    text-decoration: underline;
+    /* Changed from horizontal line to underline */
 }
 
+/* Removed the pseudo-element that drew the strike line */
 .strike-thin::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 100%;
-    border-top: 1px solid #999;
-    transform: scaleY(0.5);
-    transform-origin: center;
-    opacity: 0.7;
+    display: none;
 }
 
 /* --- SIDEBAR --- */
@@ -212,7 +207,6 @@ h1 {
 .styled-table {
     width: 100%;
     border-collapse: separate;
-    /* Required for sticky borders */
     border-spacing: 0;
 }
 
@@ -233,7 +227,6 @@ h1 {
     font-size: 14px;
     color: var(--text-main);
     white-space: nowrap;
-    /* Prevent wrapping for clean horizontal scroll */
 }
 
 .styled-table tr:hover td {
@@ -245,25 +238,20 @@ h1 {
     position: sticky;
     z-index: 5;
     background-color: inherit;
-    /* Matches row background */
 }
 
-/* Column 1: ID */
 .col-sticky-1 {
     left: 0;
     min-width: 100px;
 }
 
-/* Column 2: Trade Name */
 .col-sticky-2 {
     left: 100px;
-    /* offset by col-1 width */
     min-width: 250px;
     border-right: 2px solid #e2e8f0 !important;
     box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.1);
 }
 
-/* Ensure background is white for sticky cells in body */
 #inventory-list tr {
     background-color: white;
 }
@@ -272,7 +260,6 @@ h1 {
     background-color: inherit;
 }
 
-/* Ensure headers stay on top */
 thead th.sticky-col {
     z-index: 10;
     background-color: #f8fafc !important;
@@ -351,7 +338,6 @@ select:focus {
     box-shadow: var(--shadow-sm);
     border: 1px solid #e2e8f0;
     position: relative;
-    /* For suggestions */
 }
 
 .search-bar .material-icons-round {
@@ -367,7 +353,6 @@ select:focus {
     box-shadow: none;
 }
 
-/* Suggestions Dropdown */
 .suggestions-dropdown {
     position: absolute;
     top: 100%;
@@ -402,7 +387,6 @@ select:focus {
 .suggestion-item.active {
     border-left: 4px solid var(--primary);
     padding-left: 16px;
-    /* Adjust for border */
 }
 
 .suggestion-item:last-child {
@@ -449,7 +433,6 @@ select:focus {
     color: var(--primary-dark);
 }
 
-/* UI/UX Filter Buttons */
 .filter-group {
     display: flex;
     gap: 8px;
@@ -485,7 +468,6 @@ select:focus {
     box-shadow: 0 2px 4px rgba(13, 148, 136, 0.2);
 }
 
-/* Buttons */
 button {
     cursor: pointer;
     font-family: inherit;
@@ -611,11 +593,15 @@ button {
         font-size: 12px;
         color: black !important;
         z-index: 9999;
+        font-weight: bold !important;
+        /* Requirement: All texts bold */
     }
 
     .print-only * {
         visibility: visible !important;
         color: black !important;
+        font-weight: bold !important;
+        /* Requirement: All texts bold */
     }
 
     .rec-header {

@@ -120,7 +120,6 @@ app.post('/api/sale', (req, res) => {
     const offset = now.getTimezoneOffset() * 60000;
     const localDateStr = new Date(now - offset).toISOString().slice(0, 19).replace('T', ' ');
 
-    // Use try-catch to ensure we don't crash the server silently
     try {
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
@@ -206,8 +205,6 @@ app.post('/api/sale', (req, res) => {
 });
 
 app.get('/api/sales', (req, res) => {
-    // CRITICAL FIX: Limit results to 200 to prevent crashing the frontend/network
-    // Also use COALESCE to handle potential NULLs in concatenation
     const query = `
         SELECT s.id, s.date, s.total_amount, s.payment_method, s.patient_name,
         GROUP_CONCAT(COALESCE(si.product_name, 'Unknown') || ' (' || COALESCE(si.qty, 0) || ')', ', ') as items_list 
@@ -306,11 +303,12 @@ app.get('/api/dashboard-stats', (req, res) => {
 
     let todaySql, monthlySql, productsSql, alertsSql, chartSql;
 
+    // Issue-1 Fix: Added LIMIT 15 and prioritized sorting by qty and expiry date
     if (category === 'all') {
         todaySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of day')";
         monthlySql = "SELECT SUM(total_amount) as total FROM sales WHERE date >= date('now', 'start of month')";
         productsSql = "SELECT COUNT(*) as count FROM products";
-        alertsSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days')`;
+        alertsSql = `SELECT * FROM products WHERE qty < ? OR expiry_date < date('now', '+' || ? || ' days') ORDER BY qty ASC, expiry_date ASC LIMIT 15`;
         chartSql = "SELECT date, total_amount FROM sales ORDER BY date DESC LIMIT 7";
     } else {
         todaySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
@@ -318,25 +316,31 @@ app.get('/api/dashboard-stats', (req, res) => {
         monthlySql = `SELECT SUM(si.qty * si.price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id 
                       WHERE si.category = ? AND s.date >= date('now', 'start of month')`;
         productsSql = "SELECT COUNT(*) as count FROM products WHERE category = ?";
-        alertsSql = `SELECT * FROM products WHERE (qty < ? OR expiry_date < date('now', '+' || ? || ' days')) AND category = ?`;
+        alertsSql = `SELECT * FROM products WHERE (qty < ? OR expiry_date < date('now', '+' || ? || ' days')) AND category = ? ORDER BY qty ASC, expiry_date ASC LIMIT 15`;
         chartSql = `SELECT date(s.date) as date, SUM(si.qty * si.price) as total_amount FROM sale_items si JOIN sales s ON si.sale_id = s.id 
                     WHERE si.category = ? GROUP BY date(s.date) ORDER BY s.date DESC LIMIT 7`;
     }
 
     db.get(todaySql, category === 'all' ? [] : [category], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
         stats.todaySales = row ? row.total || 0 : 0;
         db.get(monthlySql, category === 'all' ? [] : [category], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
             stats.monthlySales = row ? row.total || 0 : 0;
             db.get("SELECT SUM(amount) as total FROM invoices WHERE status = 'Pending' AND due_date <= date('now', '+' || ? || ' days')", [pendingDays], (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
                 stats.pendingPayments = row ? row.total || 0 : 0;
                 db.get(productsSql, category === 'all' ? [] : [category], (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
                     stats.totalProducts = row ? row.count || 0 : 0;
 
                     let aParams = category === 'all' ? [lowStockThreshold, expiryDays] : [lowStockThreshold, expiryDays, category];
                     db.all(alertsSql, aParams, (err, alerts) => {
+                        if (err) return res.status(500).json({ error: err.message });
                         stats.alerts = alerts ? alerts.map(a => ({ ...a, name: a.trade_name || a.name })) : [];
 
                         db.all(chartSql, category === 'all' ? [] : [category], (err, chartData) => {
+                            if (err) return res.status(500).json({ error: err.message });
                             stats.chartData = chartData || [];
                             res.json(stats);
                         });
